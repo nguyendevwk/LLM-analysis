@@ -1289,3 +1289,129 @@ class ExperimentRunner:
             json.dump(analysis_results, f, indent=2, ensure_ascii=False)
 
         logger.info("Analysis results saved to %s", result_dir)
+
+        # Legacy report formats (same filenames as the original 720 experiments)
+        self.generate_csv_analysis(result_dir, analysis_results, experiment_data)
+        self.generate_markdown_summary(result_dir, analysis_results, experiment_data)
+
+    def generate_csv_analysis(self, result_dir, analysis_results, experiment_data):
+        """Write per-method CSV analysis (analiza-<model>.csv, legacy format)."""
+        import csv
+
+        model_name = experiment_data['model'].replace('.', '').replace(' ', '-')
+        csv_file = result_dir / f"analiza-{model_name}.csv"
+
+        rows = []
+
+        if 'scenarios' in analysis_results and analysis_results['scenarios']:
+            tested_methods = analysis_results['scenarios'].get('tested_methods', {})
+            method_calls = tested_methods.get('method_call_counts', {})
+
+            for method, count in method_calls.items():
+                rows.append({
+                    'Category': 'Tested Method',
+                    'Name': method,
+                    'Count': count,
+                    'Details': f'Called {count} times in tests'
+                })
+
+            duplicates = analysis_results['scenarios'].get('duplicates', {})
+            for dup in duplicates.get('duplicates', []):
+                rows.append({
+                    'Category': 'Potential Duplicate',
+                    'Name': f"{dup['test1']} <-> {dup['test2']}",
+                    'Count': dup['similarity'],
+                    'Details': f"Similarity: {dup['similarity']}% (lines {dup['test1_line']}, {dup['test2_line']})"
+                })
+
+        with open(csv_file, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.DictWriter(f, fieldnames=['Category', 'Name', 'Count', 'Details'])
+            writer.writeheader()
+            writer.writerows(rows)
+
+        logger.info(f"CSV analysis saved to {csv_file}")
+
+    def generate_markdown_summary(self, result_dir, analysis_results, experiment_data):
+        """Write markdown summary (podsumowanie-<model>.md, legacy format)."""
+        summary = analysis_results.get('summary', {})
+        model_name = experiment_data['model']
+        strategy = experiment_data['strategy']
+        context = experiment_data['context_type']
+
+        md_file = result_dir / f"podsumowanie-{model_name.replace('.', '').replace(' ', '-')}.md"
+
+        content = f"""# Unit Test Coverage Analysis Summary (Model: {model_name})
+# Context: {context}
+# Prompt Strategy: {strategy.replace('_', '-')}
+
+## coverage.py
+- missing: {summary.get('missing_statements', 'N/A')}
+- coverage: {summary.get('statement_coverage', 'N/A')}%
+
+## mutmut.py
+⠋ {summary.get('total_mutants', 0)}/{summary.get('total_mutants', 0)}  🎉 {summary.get('mutants_killed', 0)} 🫥 0  ⏰ 0  🤔 0  🙁 {summary.get('mutants_survived', 0)}  🔇 0
+
+## Results
+- Compilation success rate: {summary.get('compilation_success_rate', 0)}%
+- Statement coverage: {summary.get('statement_coverage', 0)}%
+- Branch coverage: {summary.get('branch_coverage', 0)}%
+- Mutation score: {summary.get('mutation_score', 0)}%
+
+## Test Quality Metrics (Objective)
+
+### Test Execution
+- Tests generated: {summary.get('total_test_methods', 0)}
+- Tests passed: {summary.get('tests_passed', 0)}
+- Tests failed: {summary.get('tests_failed', 0)}
+- Test success rate: {summary.get('test_success_rate', 0)}%
+
+### Method Coverage
+- {self.class_name} methods tested: {summary.get('methods_tested_count', 0)}/{summary.get('total_methods', len(self.known_methods))}
+- Method coverage rate: {summary.get('method_coverage_rate', 0)}%
+
+### Test Structure
+- Total assertions: {summary.get('total_assertions', 0)}
+- Average assertions per test: {summary.get('avg_assertions_per_test', 0)}
+- Tests with multiple assertions: {summary.get('tests_with_multiple_assertions', 0)}
+- Tests with error handling: {summary.get('tests_with_error_handling', 0)}
+- Has setUp/tearDown: {'Yes' if summary.get('has_setup_teardown', False) else 'No'}
+- Average test length (LOC): {summary.get('average_test_length', 0)}
+
+### Code Quality
+- Duplicate tests found (>=99.5% similarity): {summary.get('duplicate_tests_found', 0)}
+
+## Advanced Quality Analysis
+
+### Assertion Quality
+- Assertion quality score: {summary.get('assertion_quality_score', 0)}%
+- Strong assertions: {summary.get('strong_assertions_count', 0)}
+- Weak assertions: {summary.get('weak_assertions_count', 0)}
+
+### Exception Testing Quality
+- Exception quality score: {summary.get('exception_quality_score', 0)}%
+- Exception tests: {summary.get('exception_tests_count', 0)}
+- Tests checking exception messages: {summary.get('tests_with_message_check', 0)}
+
+### Test Independence
+- Independence score: {summary.get('independence_score', 100)}%
+- Tests are independent: {'Yes' if summary.get('is_independent', True) else 'No'}
+
+### Naming Quality
+- Naming quality score: {summary.get('naming_quality_score', 0)}%
+- Average test name length: {summary.get('average_name_length', 0)} characters
+
+### Code Smells
+- Code smell score: {summary.get('smell_score', 100)}% (100 = no smells)
+- Total code smells found: {summary.get('total_smells_found', 0)}
+
+## Overall Quality Score
+**{summary.get('overall_quality_score', 0)}%** (weighted average of all quality metrics)
+
+## Automatically generated by LLM Testing Automation
+- Response time: {summary.get('response_time', 0):.2f}s
+- Generated at: {summary.get('timestamp', 'N/A')}
+
+"""
+
+        md_file.write_text(content, encoding='utf-8')
+        logger.info(f"Markdown summary saved to {md_file}")
