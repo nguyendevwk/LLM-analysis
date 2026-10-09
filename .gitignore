@@ -188,3 +188,7 @@ _archive/
 
 # IDE
 .idea/
+
+# mutmut mutation testing cache
+mutants/.mutmut-cache*
+.mutmut-cache*

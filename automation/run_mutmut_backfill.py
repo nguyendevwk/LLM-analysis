@@ -175,8 +175,15 @@ sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
                 pass
 
         logger.info("Running mutmut... (this may take 5-10 minutes)")
+        mutmut_env = {**os.environ, 'PATH': os.environ.get('PATH', '') + ':' + str(Path.home() / '.local' / 'bin')}
+        # mutants/src must be importable by the configured test runner
+        src_dir = str(mutants_dir / 'src')
+        mutmut_env['PYTHONPATH'] = (
+            src_dir + os.pathsep + mutmut_env['PYTHONPATH']
+            if mutmut_env.get('PYTHONPATH') else src_dir
+        )
         run_result = subprocess.run(
-            ['mutmut', 'run'], env={**os.environ, 'PATH': os.environ.get('PATH', '') + ':' + str(Path.home() / '.local' / 'bin')},
+            ['mutmut', 'run'], env=mutmut_env,
             cwd=mutants_dir,
             capture_output=True,
             text=True,
@@ -190,7 +197,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
             logger.warning(f"Mutmut run returned code {run_result.returncode}")
 
         results_result = subprocess.run(
-            ['mutmut', 'results'], env={**os.environ, 'PATH': os.environ.get('PATH', '') + ':' + str(Path.home() / '.local' / 'bin')},
+            ['mutmut', 'results'], env=mutmut_env,
             cwd=mutants_dir,
             capture_output=True,
             text=True

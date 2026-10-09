@@ -7,6 +7,7 @@ and quality metrics calculation.
 """
 
 import json
+import os
 import subprocess
 import logging
 import re
@@ -589,20 +590,45 @@ class ExperimentRunner:
             test_dst.parent.mkdir(exist_ok=True)
             shutil.copy2(test_src, test_dst)
 
+            # Make mutants/src importable for the test runner configured in
+            # mutants/setup.cfg (`python3 -m unittest discover tests ...`):
+            # the generated tests import the module under mutation from there.
+            env = dict(os.environ)
+            src_dir = str(mutants_dir / "src")
+            env["PYTHONPATH"] = (
+                src_dir + os.pathsep + env["PYTHONPATH"]
+                if env.get("PYTHONPATH") else src_dir
+            )
+
             result = subprocess.run(
                 ['python', '-m', 'mutmut', 'run'],
-                cwd=mutants_dir, capture_output=True, text=True, timeout=600
+                cwd=mutants_dir, capture_output=True, text=True, timeout=600,
+                env=env
             )
 
             results_result = subprocess.run(
                 ['python', '-m', 'mutmut', 'results'],
-                cwd=mutants_dir, capture_output=True, text=True
+                cwd=mutants_dir, capture_output=True, text=True, env=env
             )
 
             mutmut_results_file = result_dir / "mutmut_results.txt"
             mutmut_results_file.write_text(results_result.stdout)
 
-            stats = self.parse_mutmut_results(results_result.stdout)
+            if result.returncode != 0:
+                logger.warning(
+                    "mutmut run exited with code %s: %s%s",
+                    result.returncode,
+                    (result.stdout or "")[-400:],
+                    (result.stderr or "")[-400:],
+                )
+
+            # mutmut 2.5.x prints the summary on `run` and per-status sections
+            # on `results` — parse both to stay version tolerant.
+            stats = self.parse_mutmut_results(
+                (result.stdout or "") + "\n" + (results_result.stdout or "")
+            )
+            if stats['total_mutants'] == 0:
+                logger.warning("No mutants parsed from mutmut output")
 
             stats_file = result_dir / "mutmut-stats.json"
             with open(stats_file, 'w') as f:
@@ -640,6 +666,50 @@ class ExperimentRunner:
 
             if progress_total > 0:
                 stats['mutation_score'] = round((killed / progress_total) * 100, 1)
+
+        if stats['total_mutants'] == 0:
+            # mutmut 2.5.x progress line (no 🫥 group):
+            # "109/109  🎉 66  ⏰ 0  🤔 0  🙁 43  🔇 0"
+            progress_pattern = (
+                r'(\d+)/(\d+)\s+🎉\s+(\d+)\s+⏰\s+(\d+)'
+                r'\s+🤔\s+(\d+)\s+🙁\s+(\d+)\s+🔇\s+(\d+)'
+            )
+            progress_matches = re.findall(progress_pattern, mutmut_output)
+            if progress_matches:
+                last = progress_matches[-1]
+                stats.update({
+                    'total_mutants': int(last[1]),
+                    'killed': int(last[2]),
+                    'timeout': int(last[3]),
+                    'suspicious': int(last[4]),
+                    'survived': int(last[5]),
+                    'skipped': int(last[6]),
+                })
+                if stats['total_mutants'] > 0:
+                    stats['mutation_score'] = round(
+                        (stats['killed'] / stats['total_mutants']) * 100, 1
+                    )
+
+        if stats['total_mutants'] == 0:
+            # mutmut 2.5.x `results` sections: "Survived 🙁 (43)" / "Killed 🎉 (66)"
+            section_map = {
+                '🎉': 'killed', '🙁': 'survived',
+                '⏰': 'timeout', '🤔': 'suspicious',
+            }
+            section_counts = {}
+            for emoji, key in section_map.items():
+                section_match = re.search(
+                    re.escape(emoji) + r'\s*\((\d+)\)', mutmut_output
+                )
+                if section_match:
+                    section_counts[key] = int(section_match.group(1))
+            if section_counts:
+                stats.update(section_counts)
+                stats['total_mutants'] = sum(section_counts.values())
+                if stats['total_mutants'] > 0:
+                    stats['mutation_score'] = round(
+                        (stats['killed'] / stats['total_mutants']) * 100, 1
+                    )
 
         if stats['total_mutants'] == 0:
             for line in mutmut_output.split('\n'):

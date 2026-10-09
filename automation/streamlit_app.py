@@ -250,7 +250,7 @@ st.markdown("""
 
 
 def get_available_models():
-    """Return available CLI models grouped by provider."""
+    """Return available models grouped by provider."""
     return {
         "Claude Code": {
             "claude-code-sonnet-4.5": "Claude Sonnet 4.5",
@@ -259,7 +259,24 @@ def get_available_models():
         "Google Gemini": {
             "gemini-3-pro": "Gemini 3 Pro",
             "gemini-3-flash": "Gemini 3 Flash",
-        }
+        },
+        # Free providers (API-key based, see model_registry.py)
+        "Gemini API (free tier)": {
+            "gemini-api-3.8-flash": "Gemini 3.8 Flash",
+            "gemini-api-3.7-flash": "Gemini 3.7 Flash",
+            "gemini-api-3.5-flash": "Gemini 3.5 Flash",
+            "gemini-api-3.5-flash-lite": "Gemini 3.5 Flash-Lite",
+        },
+        "Groq (free tier)": {
+            "groq-gpt-oss-120b": "GPT-OSS 120B",
+            "groq-gpt-oss-20b": "GPT-OSS 20B",
+            "groq-qwen3.8-27b": "Qwen3.8 27B",
+        },
+        "OpenRouter (free models)": {
+            "openrouter-gemma-4-31b-it": "Gemma 4 31B IT",
+            "openrouter-nemotron-3-super-120b-a12b": "Nemotron 3 Super 120B",
+            "openrouter-inkling": "Inkling",
+        },
     }
 
 

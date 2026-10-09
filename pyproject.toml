@@ -1,0 +1,26 @@
+[project]
+name = "llm-analysis"
+version = "1.1.0"
+description = "Experimental framework for evaluating automated unit test generation by Large Language Models (reproducible on free providers: Gemini API, OpenRouter, Groq)."
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [{ name = "LLM Test Generation Analysis" }]
+# Upper bound: the mutation-testing pipeline parses mutmut 2.x CLI output
+# (`python -m mutmut run/results`), which is not compatible with Python 3.13+.
+requires-python = ">=3.10,<3.13"
+dependencies = [
+    "coverage>=7.0.0",
+    "mutmut>=2.4.0,<3",
+    "streamlit>=1.28.0",
+    "matplotlib>=3.7.0",
+    "seaborn>=0.12.0",
+    "scipy>=1.10.0",
+    "pandas>=2.0.0",
+    "numpy>=1.24.0",
+    "requests>=2.28.0",
+]
+
+[tool.uv]
+# Virtual project — scripts are run from the `automation/` directory with
+# `uv run python cli_experiment_runner.py ...`
+package = false

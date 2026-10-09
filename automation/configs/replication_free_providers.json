@@ -1,0 +1,276 @@
+{
+  "description": "Auto-generated experiment matrix: 3 models \u00d7 2 strategies \u00d7 3 contexts \u00d7 3 runs",
+  "delay_between_experiments": 15,
+  "experiments": [
+    {
+      "model": "gemini-api-3.8-flash",
+      "strategy": "simple_prompting",
+      "context": "interface"
+    },
+    {
+      "model": "gemini-api-3.8-flash",
+      "strategy": "simple_prompting",
+      "context": "interface_docstring"
+    },
+    {
+      "model": "gemini-api-3.8-flash",
+      "strategy": "simple_prompting",
+      "context": "full_context"
+    },
+    {
+      "model": "gemini-api-3.8-flash",
+      "strategy": "chain_of_thought_prompting",
+      "context": "interface"
+    },
+    {
+      "model": "gemini-api-3.8-flash",
+      "strategy": "chain_of_thought_prompting",
+      "context": "interface_docstring"
+    },
+    {
+      "model": "gemini-api-3.8-flash",
+      "strategy": "chain_of_thought_prompting",
+      "context": "full_context"
+    },
+    {
+      "model": "gemini-api-3.8-flash",
+      "strategy": "simple_prompting",
+      "context": "interface"
+    },
+    {
+      "model": "gemini-api-3.8-flash",
+      "strategy": "simple_prompting",
+      "context": "interface_docstring"
+    },
+    {
+      "model": "gemini-api-3.8-flash",
+      "strategy": "simple_prompting",
+      "context": "full_context"
+    },
+    {
+      "model": "gemini-api-3.8-flash",
+      "strategy": "chain_of_thought_prompting",
+      "context": "interface"
+    },
+    {
+      "model": "gemini-api-3.8-flash",
+      "strategy": "chain_of_thought_prompting",
+      "context": "interface_docstring"
+    },
+    {
+      "model": "gemini-api-3.8-flash",
+      "strategy": "chain_of_thought_prompting",
+      "context": "full_context"
+    },
+    {
+      "model": "gemini-api-3.8-flash",
+      "strategy": "simple_prompting",
+      "context": "interface"
+    },
+    {
+      "model": "gemini-api-3.8-flash",
+      "strategy": "simple_prompting",
+      "context": "interface_docstring"
+    },
+    {
+      "model": "gemini-api-3.8-flash",
+      "strategy": "simple_prompting",
+      "context": "full_context"
+    },
+    {
+      "model": "gemini-api-3.8-flash",
+      "strategy": "chain_of_thought_prompting",
+      "context": "interface"
+    },
+    {
+      "model": "gemini-api-3.8-flash",
+      "strategy": "chain_of_thought_prompting",
+      "context": "interface_docstring"
+    },
+    {
+      "model": "gemini-api-3.8-flash",
+      "strategy": "chain_of_thought_prompting",
+      "context": "full_context"
+    },
+    {
+      "model": "openrouter-gemma-4-31b-it",
+      "strategy": "simple_prompting",
+      "context": "interface"
+    },
+    {
+      "model": "openrouter-gemma-4-31b-it",
+      "strategy": "simple_prompting",
+      "context": "interface_docstring"
+    },
+    {
+      "model": "openrouter-gemma-4-31b-it",
+      "strategy": "simple_prompting",
+      "context": "full_context"
+    },
+    {
+      "model": "openrouter-gemma-4-31b-it",
+      "strategy": "chain_of_thought_prompting",
+      "context": "interface"
+    },
+    {
+      "model": "openrouter-gemma-4-31b-it",
+      "strategy": "chain_of_thought_prompting",
+      "context": "interface_docstring"
+    },
+    {
+      "model": "openrouter-gemma-4-31b-it",
+      "strategy": "chain_of_thought_prompting",
+      "context": "full_context"
+    },
+    {
+      "model": "openrouter-gemma-4-31b-it",
+      "strategy": "simple_prompting",
+      "context": "interface"
+    },
+    {
+      "model": "openrouter-gemma-4-31b-it",
+      "strategy": "simple_prompting",
+      "context": "interface_docstring"
+    },
+    {
+      "model": "openrouter-gemma-4-31b-it",
+      "strategy": "simple_prompting",
+      "context": "full_context"
+    },
+    {
+      "model": "openrouter-gemma-4-31b-it",
+      "strategy": "chain_of_thought_prompting",
+      "context": "interface"
+    },
+    {
+      "model": "openrouter-gemma-4-31b-it",
+      "strategy": "chain_of_thought_prompting",
+      "context": "interface_docstring"
+    },
+    {
+      "model": "openrouter-gemma-4-31b-it",
+      "strategy": "chain_of_thought_prompting",
+      "context": "full_context"
+    },
+    {
+      "model": "openrouter-gemma-4-31b-it",
+      "strategy": "simple_prompting",
+      "context": "interface"
+    },
+    {
+      "model": "openrouter-gemma-4-31b-it",
+      "strategy": "simple_prompting",
+      "context": "interface_docstring"
+    },
+    {
+      "model": "openrouter-gemma-4-31b-it",
+      "strategy": "simple_prompting",
+      "context": "full_context"
+    },
+    {
+      "model": "openrouter-gemma-4-31b-it",
+      "strategy": "chain_of_thought_prompting",
+      "context": "interface"
+    },
+    {
+      "model": "openrouter-gemma-4-31b-it",
+      "strategy": "chain_of_thought_prompting",
+      "context": "interface_docstring"
+    },
+    {
+      "model": "openrouter-gemma-4-31b-it",
+      "strategy": "chain_of_thought_prompting",
+      "context": "full_context"
+    },
+    {
+      "model": "groq-gpt-oss-120b",
+      "strategy": "simple_prompting",
+      "context": "interface"
+    },
+    {
+      "model": "groq-gpt-oss-120b",
+      "strategy": "simple_prompting",
+      "context": "interface_docstring"
+    },
+    {
+      "model": "groq-gpt-oss-120b",
+      "strategy": "simple_prompting",
+      "context": "full_context"
+    },
+    {
+      "model": "groq-gpt-oss-120b",
+      "strategy": "chain_of_thought_prompting",
+      "context": "interface"
+    },
+    {
+      "model": "groq-gpt-oss-120b",
+      "strategy": "chain_of_thought_prompting",
+      "context": "interface_docstring"
+    },
+    {
+      "model": "groq-gpt-oss-120b",
+      "strategy": "chain_of_thought_prompting",
+      "context": "full_context"
+    },
+    {
+      "model": "groq-gpt-oss-120b",
+      "strategy": "simple_prompting",
+      "context": "interface"
+    },
+    {
+      "model": "groq-gpt-oss-120b",
+      "strategy": "simple_prompting",
+      "context": "interface_docstring"
+    },
+    {
+      "model": "groq-gpt-oss-120b",
+      "strategy": "simple_prompting",
+      "context": "full_context"
+    },
+    {
+      "model": "groq-gpt-oss-120b",
+      "strategy": "chain_of_thought_prompting",
+      "context": "interface"
+    },
+    {
+      "model": "groq-gpt-oss-120b",
+      "strategy": "chain_of_thought_prompting",
+      "context": "interface_docstring"
+    },
+    {
+      "model": "groq-gpt-oss-120b",
+      "strategy": "chain_of_thought_prompting",
+      "context": "full_context"
+    },
+    {
+      "model": "groq-gpt-oss-120b",
+      "strategy": "simple_prompting",
+      "context": "interface"
+    },
+    {
+      "model": "groq-gpt-oss-120b",
+      "strategy": "simple_prompting",
+      "context": "interface_docstring"
+    },
+    {
+      "model": "groq-gpt-oss-120b",
+      "strategy": "simple_prompting",
+      "context": "full_context"
+    },
+    {
+      "model": "groq-gpt-oss-120b",
+      "strategy": "chain_of_thought_prompting",
+      "context": "interface"
+    },
+    {
+      "model": "groq-gpt-oss-120b",
+      "strategy": "chain_of_thought_prompting",
+      "context": "interface_docstring"
+    },
+    {
+      "model": "groq-gpt-oss-120b",
+      "strategy": "chain_of_thought_prompting",
+      "context": "full_context"
+    }
+  ]
+}

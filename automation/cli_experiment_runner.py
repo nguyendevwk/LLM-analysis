@@ -35,6 +35,8 @@ from cli_automation import (
     GeminiCLIClient
 )
 
+import model_registry
+
 from experiment_runner import ExperimentRunner
 from prompt_strategies import SimplePrompting, ChainOfThoughtPrompting
 
@@ -76,6 +78,10 @@ class CLIExperimentRunner:
             'gemini-2.5-pro': lambda: GeminiCLIClient(model="gemini-2.5-pro"),
             'gemini-2.5-flash': lambda: GeminiCLIClient(model="gemini-2.5-flash"),
         }
+
+        # Free/open providers (API-key based, no CLI tools required):
+        # Gemini API, OpenRouter, Groq and local OpenAI-compatible servers.
+        self.cli_clients.update(model_registry.build_client_factories())
 
         logger.info(f"CLI Experiment Runner initialized with {len(self.cli_clients)} models")
         if run_id == "overwrite":
@@ -127,10 +133,24 @@ class CLIExperimentRunner:
     ) -> dict:
         logger.info(f"Starting CLI experiment: {model_name} - {strategy_name} - {context_type}")
 
-        if model_name not in self.cli_clients:
+        # Resolve free-provider models: registered names pass through,
+        # ad-hoc 'provider:model-id' syntax maps to a filesystem-safe name.
+        resolved = model_registry.resolve_model(model_name)
+        if resolved is not None:
+            spec, canonical = resolved
+            if canonical not in self.cli_clients:
+                self.cli_clients[canonical] = model_registry.make_client_factory(spec)
+                logger.info(
+                    "Registered ad-hoc model %s (%s/%s)",
+                    canonical, spec.provider, spec.model_id
+                )
+            model_name = canonical
+        elif model_name not in self.cli_clients:
             raise ValueError(
                 f"Unknown model: {model_name}. "
-                f"Available models: {', '.join(self.cli_clients.keys())}"
+                f"Available models: {', '.join(self.cli_clients.keys())}. "
+                f"Ad-hoc syntax: openrouter:org/model:free | groq:model-id | "
+                f"gemini:model-id | local:model-id"
             )
 
         result_dir = self._get_result_dir(strategy_name, context_type, model_name)
@@ -235,22 +255,88 @@ class CLIExperimentRunner:
         return list(self.cli_clients.keys())
 
     def print_available_models(self):
-        print("\nAvailable CLI Models:")
+        print("\nAvailable Models:")
         print("="*60)
 
         groups = {
             'OpenAI Codex': [k for k in self.cli_clients if k.startswith('codex-')],
             'Claude Code': [k for k in self.cli_clients if k.startswith('claude-code-')],
             'GitHub Copilot': [k for k in self.cli_clients if k.startswith('copilot-')],
-            'Google Gemini': [k for k in self.cli_clients if k.startswith('gemini-')],
+            'Google Gemini CLI': [k for k in self.cli_clients if k.startswith('gemini-') and not k.startswith('gemini-api-')],
         }
 
+        # Free/open providers from the model registry (API-key based)
+        for group_name, models in model_registry.grouped_models().items():
+            groups[group_name] = list(models.keys())
+
         for tool, models in groups.items():
+            if not models:
+                continue
             print(f"\n{tool}:")
             for model in models:
                 print(f"  - {model}")
 
+        print("\nAd-hoc syntax (any model a provider offers):")
+        print("  - openrouter:org/model:free")
+        print("  - groq:model-id | gemini:model-id | local:model-id")
         print("\n" + "="*60)
+
+    def check_providers(self) -> bool:
+        """
+        Verify API keys / connectivity for all free providers.
+
+        Prints the status of GEMINI_API_KEY, OPENROUTER_API_KEY and
+        GROQ_API_KEY (from environment or .env) and probes each provider's
+        /models endpoint.
+
+        Returns:
+            True if at least one provider is ready to run
+        """
+        import os
+        from cli_automation import APIClient, PROVIDERS
+        from cli_automation.api_client import load_dotenv
+
+        load_dotenv()
+
+        print("\nProvider check:")
+        print("=" * 60)
+
+        ready = False
+        for provider, config in PROVIDERS.items():
+            key_env = config["key_env"]
+            key_set = bool(os.environ.get(key_env))
+            label = config["label"]
+
+            if config["key_required"] and not key_set:
+                print(f"  {label:<32} key not set ({key_env})")
+                continue
+
+            try:
+                client = APIClient(provider=provider, model="__probe__")
+            except Exception as e:
+                print(f"  {label:<32} FAILED ({e})")
+                continue
+
+            import requests
+            try:
+                probe = requests.get(
+                    f"{client.base_url}/models",
+                    headers=client._headers(),
+                    timeout=10,
+                )
+                auth_ok = probe.status_code == 200
+                status = "ready" if auth_ok else f"HTTP {probe.status_code}"
+            except requests.RequestException as e:
+                auth_ok = False
+                status = f"unreachable ({type(e).__name__})"
+
+            print(f"  {label:<32} {status} ({key_env})")
+            ready = ready or auth_ok
+
+        print("=" * 60)
+        if not ready:
+            print("No provider ready — copy .env.example to .env and add a key.")
+        return ready
 
 
 def main():
@@ -273,6 +359,12 @@ Examples:
   # Legacy mode - OrderCalculator (creates run_001)
   python cli_experiment_runner.py --model claude-code-sonnet-4.5 --strategy simple_prompting --context interface
 
+  # Free providers (API key only, no CLI tools) — put keys in ../.env first
+  python cli_experiment_runner.py --check-providers
+  python cli_experiment_runner.py --model gemini-api-3.8-flash --strategy simple_prompting --context interface
+  python cli_experiment_runner.py --model openrouter-gemma-4-31b-it --strategy chain_of_thought_prompting --context full_context
+  python cli_experiment_runner.py --model "groq:openai/gpt-oss-120b" --strategy simple_prompting --context interface_docstring
+
   # Universal mode - any class
   python cli_experiment_runner.py --source-file my_module.py --model claude-code-sonnet-4.5 --strategy simple_prompting --context full_context
 
@@ -291,7 +383,10 @@ Examples:
                         help='Code context level')
     parser.add_argument('--config', help='JSON config file for batch experiments')
     parser.add_argument('--list-models', action='store_true',
-                        help='List available models')
+                        help='List available models (CLI + free API providers)')
+    parser.add_argument('--check-providers', action='store_true',
+                        help='Verify free-provider API keys (GEMINI_API_KEY, '
+                             'OPENROUTER_API_KEY, GROQ_API_KEY) and connectivity')
     parser.add_argument('--run-id', type=str, default=None,
                         help='Run identifier: number (e.g., 1), "overwrite", or omit for auto-increment')
     parser.add_argument('--results-dir', type=str, default='cli_results',
@@ -363,6 +458,10 @@ Examples:
 
     if args.list_models:
         runner.print_available_models()
+        return
+
+    if args.check_providers:
+        runner.check_providers()
         return
 
     if args.config:

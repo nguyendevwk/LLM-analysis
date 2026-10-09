@@ -1,0 +1,492 @@
+"""
+OpenAI-Compatible API Client (free providers).
+
+This module implements an HTTP client for any OpenAI-compatible
+`/chat/completions` endpoint, so experiments can run with nothing but an
+API key — no CLI tools required. It is the entry point for reproducing the
+paper's experiments on free/open providers:
+
+    Provider    Base URL                                          Key env var
+    ----------  ------------------------------------------------  -----------------
+    openrouter  https://openrouter.ai/api/v1                     OPENROUTER_API_KEY
+    groq        https://api.groq.com/openai/v1                   GROQ_API_KEY
+    gemini      https://generativelanguage.googleapis.com/...     GEMINI_API_KEY
+                (v1beta/openai — Gemini's OpenAI-compatible API)
+    local       http://localhost:11434/v1 (override via env)      LOCAL_API_KEY (optional)
+
+Authentication:
+    Put the key in a `.env` file at the repository root (see `.env.example`)
+    or export it as an environment variable.
+
+Configuration (env vars, all optional):
+    LLM_TEMPERATURE   Sampling temperature (default: 0.2; 0 = greedy)
+    LLM_MAX_TOKENS    Max completion tokens (default: 8192)
+    LLM_TIMEOUT       Request timeout in seconds (default: 300)
+    LLM_MAX_RETRIES   Attempts per request incl. backoff (default: 4)
+    <PROVIDER>_BASE_URL   Override the provider base URL (tests, proxies,
+                          local servers such as Ollama/LM Studio/vLLM)
+
+Technical Details:
+    - Inherits BaseCLIClient, so Chain-of-Thought sequential prompting
+      (send_prompts_sequential) works unchanged.
+    - Retries with exponential backoff on 429/5xx/timeouts (free tiers are
+      rate-limited) and honours `Retry-After` when present.
+    - `command` is set to "api:<provider>" so prompt strategies detect a
+      non-shell client and use the sequential-prompt path.
+"""
+
+import logging
+import os
+import time
+from pathlib import Path
+from typing import Dict, List, Optional
+
+import requests
+
+from .base_cli_client import BaseCLIClient
+
+logger = logging.getLogger(__name__)
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
+PROVIDERS: Dict[str, Dict] = {
+    "openrouter": {
+        "label": "OpenRouter",
+        "base_url": "https://openrouter.ai/api/v1",
+        "key_env": "OPENROUTER_API_KEY",
+        "extra_headers": {"X-Title": "LLM Test Generation Analysis"},
+        "key_required": True,
+    },
+    "groq": {
+        "label": "Groq",
+        "base_url": "https://api.groq.com/openai/v1",
+        "key_env": "GROQ_API_KEY",
+        "extra_headers": {},
+        "key_required": True,
+    },
+    "gemini": {
+        "label": "Google Gemini API",
+        "base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
+        "key_env": "GEMINI_API_KEY",
+        "extra_headers": {},
+        "key_required": True,
+    },
+    "local": {
+        "label": "Local OpenAI-compatible server",
+        "base_url": "http://localhost:11434/v1",
+        "key_env": "LOCAL_API_KEY",
+        "extra_headers": {},
+        "key_required": False,
+    },
+}
+
+_env_loaded = False
+
+
+def load_dotenv() -> None:
+    """
+    Load KEY=VALUE pairs from the first `.env` file found.
+
+    Search order: ./.env, ../.env, <repo root>/.env. Existing environment
+    variables are never overridden. The file is read at most once per process.
+    """
+    global _env_loaded
+    if _env_loaded:
+        return
+
+    candidates = [
+        Path.cwd() / ".env",
+        Path.cwd().parent / ".env",
+        REPO_ROOT / ".env",
+    ]
+
+    for env_file in candidates:
+        if not env_file.is_file():
+            continue
+        try:
+            for raw_line in env_file.read_text(encoding="utf-8").splitlines():
+                line = raw_line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, _, value = line.partition("=")
+                key = key.strip()
+                value = value.strip().strip('"').strip("'")
+                if key:
+                    os.environ.setdefault(key, value)
+            logger.info("Loaded environment variables from %s", env_file)
+        except OSError as e:
+            logger.warning("Could not read %s: %s", env_file, e)
+        break
+
+    _env_loaded = True
+
+
+class APIClient(BaseCLIClient):
+    """
+    Client for OpenAI-compatible chat completion APIs (free providers).
+
+    Attributes:
+        SUPPORTED_PROVIDERS: Keys of PROVIDERS this client accepts
+        provider: Provider key (openrouter/groq/gemini/local)
+        model: Provider-native model identifier
+        last_response_time: Duration of the last request in seconds
+    """
+
+    SUPPORTED_PROVIDERS = list(PROVIDERS.keys())
+
+    def __init__(
+        self,
+        provider: str,
+        model: str,
+        timeout: Optional[int] = None,
+        temperature: Optional[float] = None,
+        max_tokens: Optional[int] = None,
+    ):
+        """
+        Initialize the API client.
+
+        Args:
+            provider: One of 'openrouter', 'groq', 'gemini', 'local'
+            model: Provider-native model id (e.g. 'google/gemma-4-31b-it:free')
+            timeout: Request timeout in seconds (default: LLM_TIMEOUT or 300)
+            temperature: Sampling temperature (default: LLM_TEMPERATURE or 0.2)
+            max_tokens: Max completion tokens (default: LLM_MAX_TOKENS or 8192)
+
+        Raises:
+            ValueError: If the provider is unknown
+            RuntimeError: If requests is missing or the API key is not set
+        """
+        load_dotenv()
+
+        if provider not in PROVIDERS:
+            raise ValueError(
+                f"Unknown provider: {provider}. "
+                f"Supported providers: {', '.join(PROVIDERS)}"
+            )
+
+        config = PROVIDERS[provider]
+        self.provider = provider
+        self.provider_config = config
+        self.base_url = os.environ.get(
+            f"{provider.upper()}_BASE_URL", config["base_url"]
+        ).rstrip("/")
+        self.api_key = os.environ.get(config["key_env"]) or None
+        self.key_required = config["key_required"]
+        self.key_env = config["key_env"]
+
+        self.temperature = (
+            temperature if temperature is not None
+            else float(os.environ.get("LLM_TEMPERATURE", "0.2"))
+        )
+        self.max_tokens = (
+            max_tokens if max_tokens is not None
+            else int(os.environ.get("LLM_MAX_TOKENS", "8192"))
+        )
+        resolved_timeout = timeout or int(os.environ.get("LLM_TIMEOUT", "300"))
+        self.max_retries = int(os.environ.get("LLM_MAX_RETRIES", "4"))
+
+        # `command` marks the client type for prompt strategies (CLI-mode
+        # sequential prompting) without spawning any subprocess.
+        super().__init__(
+            command=f"api:{provider}", model=model, timeout=resolved_timeout
+        )
+
+        if not self.check_installation():
+            raise RuntimeError(
+                f"{config['label']} is not ready: set {self.key_env} "
+                f"in <repo>/.env or as an environment variable "
+                f"(see .env.example), or install 'requests'."
+            )
+
+        logger.info(
+            "API client initialized: provider=%s, model=%s, base_url=%s",
+            provider, model, self.base_url
+        )
+
+    def check_installation(self) -> bool:
+        """
+        Verify that requests is available and the API key (if required) is set.
+
+        Returns:
+            True if the client can run, False otherwise
+        """
+        try:
+            import requests  # noqa: F401
+        except ImportError:
+            logger.error("'requests' is not installed — run: uv sync")
+            return False
+
+        if self.key_required and not self.api_key:
+            logger.error(
+                "No %s found (checked environment and .env files)", self.key_env
+            )
+            return False
+
+        return True
+
+    def check_authentication(self) -> bool:
+        """
+        Verify the API key by querying the provider's /models endpoint.
+
+        Returns:
+            True if the endpoint is reachable and the key is accepted
+        """
+        try:
+            response = requests.get(
+                f"{self.base_url}/models",
+                headers=self._headers(),
+                timeout=20,
+            )
+            if response.status_code == 200:
+                return True
+            if response.status_code in (401, 403):
+                logger.error(
+                    "%s rejected the key (%s): %s",
+                    self.provider_config["label"],
+                    response.status_code,
+                    response.text[:200],
+                )
+                return False
+            logger.warning(
+                "Unexpected status %s from %s/models — proceeding anyway",
+                response.status_code, self.base_url
+            )
+            return True
+        except requests.RequestException as e:
+            logger.warning(
+                "Could not verify %s authentication (%s) — proceeding anyway",
+                self.provider_config["label"], e
+            )
+            return True
+
+    def get_available_models(self) -> List[str]:
+        """Return model ids listed by the provider's /models endpoint."""
+        response = requests.get(
+            f"{self.base_url}/models", headers=self._headers(), timeout=20
+        )
+        response.raise_for_status()
+        data = response.json()
+        return [m.get("id", "") for m in data.get("data", []) if m.get("id")]
+
+    def send_prompt(self, prompt: str, **kwargs) -> str:
+        """
+        Send a single prompt to the chat completions API.
+
+        Args:
+            prompt: The prompt text to send
+            **kwargs: Accepted for interface compatibility (unused)
+
+        Returns:
+            The model's response text
+
+        Raises:
+            RuntimeError: If the request fails after all retries
+        """
+        payload: Dict = {
+            "model": self.model,
+            "messages": [{"role": "user", "content": prompt}],
+        }
+        if self.temperature is not None:
+            payload["temperature"] = self.temperature
+        if self.max_tokens:
+            payload["max_tokens"] = self.max_tokens
+
+        response_text = self._post_chat_completions(payload)
+        self._log_code_detection(response_text)
+        return response_text
+
+    def _headers(self) -> Dict[str, str]:
+        """Build request headers for the provider."""
+        headers = {"Content-Type": "application/json"}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+        headers.update(self.provider_config.get("extra_headers", {}))
+        return headers
+
+    def _post_chat_completions(self, payload: Dict) -> str:
+        """
+        POST /chat/completions with retry/backoff logic.
+
+        Retries on timeouts, connection errors, 429 and 5xx responses with
+        exponential backoff (honouring `Retry-After`). A 400 caused by an
+        unsupported `temperature` parameter is retried once without it.
+
+        Raises:
+            RuntimeError: On permanent failures (auth, missing model, ...)
+            RuntimeError: If every attempt failed
+        """
+        url = f"{self.base_url}/chat/completions"
+        drop_temperature = False
+        last_error = "no attempt made"
+
+        for attempt in range(self.max_retries):
+            body = dict(payload)
+            if drop_temperature:
+                body.pop("temperature", None)
+
+            start = time.time()
+            try:
+                response = requests.post(
+                    url, headers=self._headers(), json=body, timeout=self.timeout
+                )
+                self.last_response_time = time.time() - start
+            except requests.Timeout:
+                self.last_response_time = time.time() - start
+                last_error = f"timeout after {self.timeout}s"
+                logger.warning(
+                    "Attempt %d/%d timed out after %ds",
+                    attempt + 1, self.max_retries, self.timeout
+                )
+            except requests.RequestException as e:
+                self.last_response_time = time.time() - start
+                last_error = str(e)
+                logger.warning(
+                    "Attempt %d/%d connection error: %s",
+                    attempt + 1, self.max_retries, e
+                )
+            else:
+                if response.status_code == 200:
+                    try:
+                        data = response.json()
+                    except ValueError as e:
+                        last_error = f"invalid JSON: {e}"
+                        logger.warning("Invalid JSON response: %s", e)
+                    else:
+                        usage = data.get("usage")
+                        if usage:
+                            logger.info(
+                                "Tokens — prompt: %s, completion: %s",
+                                usage.get("prompt_tokens"),
+                                usage.get("completion_tokens"),
+                            )
+                        return self._extract_content(data)
+
+                elif (
+                    response.status_code == 400
+                    and not drop_temperature
+                    and "temperature" in payload
+                    and "temperature" in response.text.lower()
+                ):
+                    logger.info(
+                        "Provider rejected 'temperature' — retrying without it"
+                    )
+                    drop_temperature = True
+                    continue
+
+                elif response.status_code in (401, 403):
+                    raise RuntimeError(
+                        f"{self.provider_config['label']} authentication failed "
+                        f"({response.status_code}): {response.text[:300]}. "
+                        f"Check {self.key_env}."
+                    )
+
+                elif response.status_code == 404:
+                    raise RuntimeError(
+                        f"Model '{self.model}' not found on "
+                        f"{self.provider_config['label']} (404): "
+                        f"{response.text[:300]}"
+                    )
+
+                elif response.status_code == 400:
+                    raise RuntimeError(
+                        f"{self.provider_config['label']} rejected the request "
+                        f"(400): {response.text[:300]}"
+                    )
+
+                else:
+                    last_error = (
+                        f"HTTP {response.status_code}: {response.text[:300]}"
+                    )
+                    if response.status_code == 429 or response.status_code >= 500:
+                        retry_after = response.headers.get("Retry-After")
+                        logger.warning(
+                            "Attempt %d/%d got %s (Retry-After: %s)",
+                            attempt + 1, self.max_retries,
+                            response.status_code, retry_after
+                        )
+                        if retry_after and attempt < self.max_retries - 1:
+                            try:
+                                time.sleep(min(float(retry_after), 60.0))
+                                continue
+                            except ValueError:
+                                pass
+                    else:
+                        raise RuntimeError(
+                            f"{self.provider_config['label']} error {last_error}"
+                        )
+
+            if attempt < self.max_retries - 1:
+                wait = 2 ** attempt
+                logger.info("Waiting %ds before retry...", wait)
+                time.sleep(wait)
+
+        raise RuntimeError(
+            f"All {self.max_retries} attempts failed for "
+            f"{self.provider_config['label']} model '{self.model}': {last_error}"
+        )
+
+    def _extract_content(self, data: Dict) -> str:
+        """
+        Extract assistant text from an OpenAI-style chat completion payload.
+
+        Handles string content, list-of-parts content, legacy `text` fields,
+        and reports empty completions (e.g. reasoning-only models).
+        """
+        choices = data.get("choices") or []
+        if not choices:
+            raise RuntimeError(f"No choices in response: {str(data)[:300]}")
+
+        choice = choices[0]
+        message = choice.get("message") or {}
+        content = message.get("content")
+
+        if isinstance(content, list):
+            parts = []
+            for part in content:
+                if isinstance(part, dict):
+                    parts.append(part.get("text") or "")
+                elif isinstance(part, str):
+                    parts.append(part)
+            content = "".join(parts)
+
+        if not content:
+            content = choice.get("text")
+
+        if not content:
+            reasoning = message.get("reasoning_content") or message.get("reasoning")
+            hint = (
+                " (model returned reasoning only — try a non-reasoning model "
+                "or raise LLM_MAX_TOKENS)"
+                if reasoning else ""
+            )
+            raise RuntimeError(f"Empty completion content from model{hint}")
+
+        logger.info("Received response (%d chars)", len(content))
+        return content
+
+    def _log_code_detection(self, text: str):
+        """
+        Log information about detected code in the response.
+
+        Args:
+            text: Response text to analyze
+        """
+        if '```python' in text:
+            logger.debug("Response contains Python code blocks")
+        elif '```' in text:
+            logger.debug("Response contains generic code blocks")
+        elif 'import unittest' in text or 'def test' in text:
+            logger.debug("Response appears to be raw Python code")
+        else:
+            logger.warning("Response doesn't appear to contain code")
+
+    def set_model(self, model: str):
+        """Switch to a different model."""
+        logger.info("Switched to model: %s", model)
+        self.model = model
+
+    def cleanup(self):
+        """Release HTTP session resources."""
+        logger.debug("Cleanup called for %s", self.__class__.__name__)
+
+
