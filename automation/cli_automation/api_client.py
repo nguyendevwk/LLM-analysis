@@ -20,7 +20,8 @@ Authentication:
 
 Configuration (env vars, all optional):
     LLM_TEMPERATURE   Sampling temperature (default: 0.2; 0 = greedy)
-    LLM_MAX_TOKENS    Max completion tokens (default: 8192)
+    LLM_MAX_TOKENS    Max completion tokens (default: 8192; 0 or empty =
+                      no limit — omit the parameter and let the provider decide)
     LLM_TIMEOUT       Request timeout in seconds (default: 300)
     LLM_MAX_RETRIES   Attempts per request incl. backoff (default: 4)
     <PROVIDER>_BASE_URL   Override the provider base URL (tests, proxies,
@@ -81,6 +82,21 @@ PROVIDERS: Dict[str, Dict] = {
 }
 
 _env_loaded = False
+
+
+def _parse_max_tokens(raw: Optional[str]) -> Optional[int]:
+    """
+    Parse the LLM_MAX_TOKENS env var.
+
+    Returns None (no limit — the parameter is omitted from the request) when
+    the value is empty, "0" or "none"; otherwise the integer value.
+    """
+    if raw is None:
+        return None
+    value = raw.strip().lower()
+    if value in ("", "0", "none", "unlimited"):
+        return None
+    return int(value)
 
 
 def load_dotenv() -> None:
@@ -180,7 +196,7 @@ class APIClient(BaseCLIClient):
         )
         self.max_tokens = (
             max_tokens if max_tokens is not None
-            else int(os.environ.get("LLM_MAX_TOKENS", "8192"))
+            else _parse_max_tokens(os.environ.get("LLM_MAX_TOKENS", "8192"))
         )
         resolved_timeout = timeout or int(os.environ.get("LLM_TIMEOUT", "300"))
         self.max_retries = int(os.environ.get("LLM_MAX_RETRIES", "4"))
