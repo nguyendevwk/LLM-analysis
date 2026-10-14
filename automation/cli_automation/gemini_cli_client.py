@@ -282,7 +282,12 @@ IMPORTANT: Return the complete code in your response. Do NOT use write_file, edi
                         "Received Gemini response (%d chars)",
                         len(result_text)
                     )
-                    self._log_code_detection(result_text)
+                    if is_final_step:
+                        self._log_code_detection(result_text)
+                    else:
+                        logger.debug(
+                            "Skipping code detection for an intermediate CoT step"
+                        )
                     return result_text
 
                 logger.error("Could not extract result from JSON response")
@@ -353,4 +358,3 @@ IMPORTANT: Return the complete code in your response. Do NOT use write_file, edi
             List of supported model identifiers
         """
         return self.SUPPORTED_MODELS.copy()
-

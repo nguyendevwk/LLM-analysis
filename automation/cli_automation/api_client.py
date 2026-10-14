@@ -290,7 +290,8 @@ class APIClient(BaseCLIClient):
 
         Args:
             prompt: The prompt text to send
-            **kwargs: Accepted for interface compatibility (unused)
+            **kwargs: Accepted for interface compatibility. ``is_final_step``
+                controls code detection for sequential CoT requests.
 
         Returns:
             The model's response text
@@ -308,7 +309,10 @@ class APIClient(BaseCLIClient):
             payload["max_tokens"] = self.max_tokens
 
         response_text = self._post_chat_completions(payload)
-        self._log_code_detection(response_text)
+        if kwargs.get("is_final_step", True):
+            self._log_code_detection(response_text)
+        else:
+            logger.debug("Skipping code detection for an intermediate CoT step")
         return response_text
 
     def _headers(self) -> Dict[str, str]:
@@ -504,5 +508,4 @@ class APIClient(BaseCLIClient):
     def cleanup(self):
         """Release HTTP session resources."""
         logger.debug("Cleanup called for %s", self.__class__.__name__)
-
 

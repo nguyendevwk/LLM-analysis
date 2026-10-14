@@ -585,6 +585,14 @@ class ExperimentRunner:
                     'timeout': 0, 'mutation_score': 0.0, 'status': 'skipped_no_dir'
                 }
 
+            # mutmut 2.x caches mutation ids by source line. The generated
+            # tests are replaced for every experiment, so a cache from a
+            # previous source/test pair can produce stale results or crash
+            # mutmut while reading a now-invalid line number.
+            cache_file = mutants_dir / ".mutmut-cache"
+            if cache_file.is_file():
+                cache_file.unlink()
+
             test_src = result_dir / "mutmut_test.py"
             test_dst = mutants_dir / "tests" / "mutmut_test.py"
             test_dst.parent.mkdir(exist_ok=True)
@@ -633,6 +641,13 @@ class ExperimentRunner:
             stats_file = result_dir / "mutmut-stats.json"
             with open(stats_file, 'w') as f:
                 json.dump(stats, f, indent=2)
+
+            if stats['total_mutants'] == 0:
+                stats['status'] = 'failed_no_results'
+            elif result.returncode == 1:
+                stats['status'] = 'failed_mutmut'
+            else:
+                stats['status'] = 'completed'
 
             return stats
 

@@ -251,6 +251,40 @@ class CLIExperimentRunner:
 
         return results
 
+    def run_full_scenario(self, model_name: str) -> list:
+        """Run all strategies and context levels for one model."""
+        strategies = ['simple_prompting', 'chain_of_thought_prompting']
+        contexts = ['interface', 'interface_docstring', 'full_context']
+        total = len(strategies) * len(contexts)
+        results = []
+
+        logger.info(
+            "Running full scenario for %s: %d experiments",
+            model_name, total
+        )
+        for index, (strategy, context) in enumerate(
+            ((strategy, context) for strategy in strategies for context in contexts),
+            start=1
+        ):
+            logger.info(
+                "Full scenario experiment %d/%d: %s - %s",
+                index, total, strategy, context
+            )
+            result = self.run_single_experiment(model_name, strategy, context)
+            if result:
+                results.append(result)
+            else:
+                logger.error(
+                    "Full scenario experiment %d/%d failed: %s - %s",
+                    index, total, strategy, context
+                )
+
+        logger.info(
+            "Full scenario completed: %d/%d experiments successful",
+            len(results), total
+        )
+        return results
+
     def get_available_models(self) -> list:
         return list(self.cli_clients.keys())
 
@@ -373,6 +407,9 @@ Examples:
 
   # Batch with auto-increment
   python cli_experiment_runner.py --config cli_config.json
+
+  # Full scenario for one model (2 strategies x 3 context levels)
+  python cli_experiment_runner.py --model gemini-api-3.8-flash --full-scenario
         ''',
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -382,6 +419,8 @@ Examples:
     parser.add_argument('--context', choices=['interface', 'interface_docstring', 'full_context'],
                         help='Code context level')
     parser.add_argument('--config', help='JSON config file for batch experiments')
+    parser.add_argument('--full-scenario', action='store_true',
+                        help='Run both strategies across all three context levels for one model')
     parser.add_argument('--list-models', action='store_true',
                         help='List available models (CLI + free API providers)')
     parser.add_argument('--check-providers', action='store_true',
@@ -472,6 +511,21 @@ Examples:
             json.dump(results, f, indent=2, default=str)
 
         logger.info(f"Batch results saved to: {batch_results_file}")
+
+    elif args.full_scenario:
+        if not args.model:
+            parser.error('--full-scenario requires --model')
+
+        results = runner.run_full_scenario(args.model)
+        scenario_results_file = Path("cli_full_scenario_results.json")
+        with open(scenario_results_file, 'w') as f:
+            json.dump(results, f, indent=2, default=str)
+
+        logger.info("Full scenario results saved to: %s", scenario_results_file)
+        print(
+            f"\nFull scenario completed: {len(results)}/6 experiments successful.\n"
+            f"Results saved to: {scenario_results_file}\n"
+        )
 
     elif args.model and args.strategy and args.context:
         result = runner.run_single_experiment(

@@ -361,10 +361,14 @@ def parse_experiment_results(results_dir: str, strategy: str, context: str, mode
 
 
 def run_experiment(source_file: str, model: str, strategy: str, context: str,
-                   class_name: str = None, run_id: int = None, results_dir: str = None):
+                   class_name: str = None, run_id: int = None, results_dir: str = None,
+                   full_scenario: bool = False):
     """Run experiment using CLI runner."""
-    cmd = [sys.executable, "cli_experiment_runner.py",
-           "--model", model, "--strategy", strategy, "--context", context]
+    cmd = [sys.executable, "cli_experiment_runner.py", "--model", model]
+    if full_scenario:
+        cmd.append("--full-scenario")
+    else:
+        cmd.extend(["--strategy", strategy, "--context", context])
 
     if source_file:
         cmd.extend(["--source-file", source_file])
@@ -459,6 +463,11 @@ def render_config_view():
                 }[x]
             )
 
+        full_scenario = st.checkbox(
+            "Run full scenario (2 strategies × 3 context levels)",
+            help="Runs six experiments for the selected model in one batch."
+        )
+
         st.markdown("---")
         st.markdown('<div class="section-header">Advanced Options</div>', unsafe_allow_html=True)
         adv_col1, adv_col2 = st.columns(2)
@@ -470,7 +479,7 @@ def render_config_view():
         st.markdown("---")
         can_run = mode == "Legacy (OrderCalculator)" or (source_file and Path(source_file).exists() and class_info)
 
-        if st.button("Run Experiment", disabled=not can_run, use_container_width=True, type="primary"):
+        if st.button("Run Experiment", disabled=not can_run, width="stretch", type="primary"):
             st.session_state.running = True
             st.session_state.output = []
             st.session_state.config = {
@@ -480,6 +489,7 @@ def render_config_view():
                 "model": selected_model,
                 "strategy": strategy,
                 "context": context,
+                "full_scenario": full_scenario,
                 "run_id": run_id if run_id > 0 else None,
                 "results_dir": results_dir
             }
@@ -518,6 +528,21 @@ def render_config_view():
     return selected_model, strategy, context
 
 
+def parse_full_scenario_results(results_dir: str, model: str) -> list:
+    """Load the latest result for each strategy/context combination."""
+    results = []
+    for strategy in ["simple_prompting", "chain_of_thought_prompting"]:
+        for context in ["interface", "interface_docstring", "full_context"]:
+            metrics = parse_experiment_results(results_dir, strategy, context, model)
+            if metrics:
+                results.append({
+                    "strategy": strategy,
+                    "context": context,
+                    **metrics,
+                })
+    return results
+
+
 def render_running_view():
     """Render the running experiment view."""
     config = st.session_state.config
@@ -534,7 +559,8 @@ def render_running_view():
         config["context"],
         config["class_name"],
         config["run_id"],
-        config["results_dir"] if config["results_dir"] != "cli_results" else None
+        config["results_dir"] if config["results_dir"] != "cli_results" else None,
+        config.get("full_scenario", False)
     )
 
     lines = []
@@ -546,7 +572,12 @@ def render_running_view():
     success = process.returncode == 0
 
     actual_dir = config["results_dir"] or "cli_results"
-    metrics = parse_experiment_results(actual_dir, config["strategy"], config["context"], config["model"])
+    if config.get("full_scenario", False):
+        metrics = parse_full_scenario_results(actual_dir, config["model"])
+    else:
+        metrics = parse_experiment_results(
+            actual_dir, config["strategy"], config["context"], config["model"]
+        )
 
     st.session_state.running = False
     st.session_state.output = lines
@@ -574,7 +605,34 @@ def render_results_view():
         else:
             st.markdown('<div style="text-align: right;"><span class="status-error">Failed</span></div>', unsafe_allow_html=True)
 
-    if metrics:
+    if config.get("full_scenario", False):
+        st.markdown("### Full scenario results")
+        st.caption(
+            f"{len(metrics) if metrics else 0}/6 experiments completed — "
+            "two strategies across three context levels."
+        )
+        if metrics:
+            rows = []
+            for item in metrics:
+                rows.append({
+                    "Strategy": "Simple Prompting" if "simple" in item["strategy"] else "Chain-of-Thought",
+                    "Context": {
+                        "interface": "Interface",
+                        "interface_docstring": "Interface + Docstrings",
+                        "full_context": "Full Implementation",
+                    }[item["context"]],
+                    "Statement coverage": f'{item["statement_coverage"]:.1f}%',
+                    "Branch coverage": f'{item["branch_coverage"]:.1f}%',
+                    "Mutation score": f'{item["mutation_score"]:.1f}%',
+                    "Quality score": f'{item["quality_score"]:.0f}',
+                    "Tests": f'{item["tests_passed"]}/{item["total_tests"]}',
+                })
+            st.dataframe(rows, hide_index=True, width="stretch")
+        else:
+            st.warning("No completed scenario results were found.")
+        st.markdown("---")
+
+    if metrics and not config.get("full_scenario", False):
         st.markdown("---")
 
         col1, col2, col3, col4 = st.columns(4)
@@ -659,7 +717,7 @@ def render_results_view():
             st.code("\n".join(st.session_state.output[-100:]), language="")
 
     st.markdown("---")
-    if st.button("Run Another Experiment", use_container_width=True):
+    if st.button("Run Another Experiment", width="stretch"):
         st.session_state.running = False
         st.session_state.result = None
         st.session_state.metrics = None

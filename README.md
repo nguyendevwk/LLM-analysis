@@ -161,6 +161,18 @@ tools required. Only a key in `.env` is needed:
    uv run python cli_experiment_runner.py --config configs/replication_free_providers.json
    ```
 
+6. Run the complete scenario for one model in a single command (2 strategies ×
+   3 context levels):
+
+   ```bash
+   cd automation
+   uv run python cli_experiment_runner.py \
+     --model gemini-api-3.8-flash \
+     --full-scenario
+   ```
+
+   The six experiment results are saved to `cli_full_scenario_results.json`.
+
 Curated free models live in `automation/model_registry.py` (add one line to
 extend). Local open-weight servers (Ollama / LM Studio / vLLM) work through
 the `local` provider and `LOCAL_BASE_URL`. Request settings can be tuned via
@@ -194,6 +206,10 @@ cd automation
 uv run streamlit run streamlit_app.py
 ```
 
+In the web interface, enable **Run full scenario** to run all six
+strategy/context combinations for the selected model and view the results in
+one table.
+
 ### Key Results (720 experiments)
 
 | Model              | Statement Coverage | Branch Coverage | Mutation Score |
@@ -212,3 +228,21 @@ Context level impact on statement coverage: Interface (79.3%) -> Interface+Docst
 - Mutation testing requires `fork()` support (Linux/WSL only, not native Windows)
 - All 720 experiments are stored in `automation/cli_results/`
 - Aggregated data is available in `automation/data/`
+
+
+
+  curl https://openrouter.ai/api/v1/chat/completions \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer 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" \
+    -d '{
+    "model": "nvidia/nemotron-3.5-lightning:free",
+    "messages": [
+      {
+        "role": "user",
+        "content": "How many r`s are in the word `strawberry?`"
+      }
+    ],
+    "reasoning": {
+      "enabled": true
+    }
+}'
