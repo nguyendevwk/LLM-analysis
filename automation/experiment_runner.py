@@ -49,6 +49,32 @@ def _python_for_module(module_name: str) -> Optional[str]:
             timeout=15,
         )
         if probe.returncode == 0:
+            if module_name == "mutmut":
+                ver_probe = subprocess.run(
+                    [str(candidate), "-c", "import mutmut; print(getattr(mutmut, '__version__', '2.0.0'))"],
+                    capture_output=True,
+                    text=True,
+                    timeout=15,
+                )
+                if ver_probe.returncode == 0:
+                    ver_str = ver_probe.stdout.strip()
+                    try:
+                        major = int(ver_str.split(".")[0])
+                    except (ValueError, IndexError):
+                        major = 2
+                    if major >= 3:
+                        logger.warning(
+                            "Found mutmut %s (major >= 3), which broke backward compatibility with --paths-to-mutate and unittest runner. "
+                            "Downgrading to mutmut<3 (2.5.1) to preserve standard 109 mutants benchmark...",
+                            ver_str,
+                        )
+                        subprocess.run(
+                            [str(candidate), "-m", "pip", "install", "-q", "--no-warn-conflicts", "mutmut<3", "rich<14"],
+                            capture_output=True,
+                            text=True,
+                            timeout=180,
+                        )
+
             if candidate != Path(sys.executable):
                 logger.info(
                     "Using project interpreter %s for %s",
@@ -62,7 +88,7 @@ def _python_for_module(module_name: str) -> Optional[str]:
     try:
         pip_args = [sys.executable, "-m", "pip", "install", "-q", "--no-warn-conflicts"]
         if module_name == "mutmut":
-            pip_args.extend(["mutmut", "rich<14"])
+            pip_args.extend(["mutmut<3", "rich<14"])
         else:
             pip_args.append(module_name)
 
@@ -783,11 +809,28 @@ class ExperimentRunner:
                 if env.get("PYTHONPATH") else src_dir
             )
 
-            mutmut_cmd = [
-                mutmut_python, '-m', 'mutmut', 'run',
-                '--paths-to-mutate', 'src/',
-                '--runner', f"{mutmut_python} -m unittest discover tests '*_test.py'"
-            ]
+            # Check mutmut major version to format CLI arguments properly
+            ver_res = subprocess.run(
+                [mutmut_python, "-c", "import mutmut; print(getattr(mutmut, '__version__', '2.0.0'))"],
+                capture_output=True,
+                text=True,
+                timeout=15,
+            )
+            mutmut_ver_major = 2
+            if ver_res.returncode == 0:
+                try:
+                    mutmut_ver_major = int(ver_res.stdout.strip().split(".")[0])
+                except (ValueError, IndexError):
+                    mutmut_ver_major = 2
+
+            if mutmut_ver_major >= 3:
+                mutmut_cmd = [mutmut_python, '-m', 'mutmut', 'run']
+            else:
+                mutmut_cmd = [
+                    mutmut_python, '-m', 'mutmut', 'run',
+                    '--paths-to-mutate', 'src/',
+                    '--runner', f"{mutmut_python} -m unittest discover tests '*_test.py'"
+                ]
             result = subprocess.run(
                 mutmut_cmd,
                 cwd=mutants_dir, capture_output=True, text=True, timeout=600,
