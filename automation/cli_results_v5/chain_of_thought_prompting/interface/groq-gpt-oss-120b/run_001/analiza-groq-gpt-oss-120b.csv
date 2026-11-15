@@ -1,0 +1,7 @@
+Category,Name,Count,Details
+Tested Method,__init__,19,Called 19 times in tests
+Tested Method,add_item,16,Called 16 times in tests
+Tested Method,remove_item,1,Called 1 times in tests
+Tested Method,get_subtotal,4,Called 4 times in tests
+Tested Method,total_items,4,Called 4 times in tests
+Tested Method,list_items,4,Called 4 times in tests

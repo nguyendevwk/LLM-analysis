@@ -1,0 +1,207 @@
+{
+  "compilation": {
+    "compilation_success": true,
+    "execution_success": false,
+    "tests_run": 14,
+    "tests_passed": 12,
+    "tests_failed": 2,
+    "test_errors": [],
+    "compilation_errors": []
+  },
+  "coverage": {
+    "statements": 93,
+    "missing": 34,
+    "coverage_percent": 61,
+    "branch_coverage_percent": 93,
+    "partial_coverage": 0
+  },
+  "mutation": {
+    "total_mutants": 109,
+    "killed": 40,
+    "survived": 69,
+    "timeout": 0,
+    "suspicious": 0,
+    "skipped": 0,
+    "mutation_score": 36.7,
+    "status": "completed"
+  },
+  "scenarios": {
+    "total_test_methods": 14,
+    "tested_methods": {
+      "methods_tested": [
+        "__init__",
+        "add_item",
+        "remove_item",
+        "get_subtotal",
+        "total_items",
+        "list_items"
+      ],
+      "methods_tested_count": 6,
+      "total_methods": 12,
+      "method_coverage_rate": 50.0,
+      "method_call_counts": {
+        "__init__": 19,
+        "add_item": 16,
+        "remove_item": 1,
+        "get_subtotal": 4,
+        "total_items": 4,
+        "list_items": 4
+      }
+    },
+    "duplicates": {
+      "total_tests_analyzed": 14,
+      "duplicate_pairs_found": 0,
+      "unique_duplicate_tests": 0,
+      "duplicates": []
+    },
+    "assertion_quality": {
+      "total_assertions": 16,
+      "weak_assertions_count": 0,
+      "strong_assertions_count": 16,
+      "weak_assertions": [],
+      "assertions_without_message": 32,
+      "assertion_quality_score": 100.0
+    },
+    "exception_quality": {
+      "exception_tests_count": 14,
+      "tests_with_message_check": 0,
+      "generic_exception_usage": 0,
+      "exception_tests": [
+        {
+          "test": "test_init_invalid_non_numeric",
+          "line": 19,
+          "exception_type": "(TypeError, ValueError)"
+        },
+        {
+          "test": "test_init_invalid_non_numeric",
+          "line": 21,
+          "exception_type": "(TypeError, ValueError)"
+        },
+        {
+          "test": "test_init_invalid_non_numeric",
+          "line": 23,
+          "exception_type": "(TypeError, ValueError)"
+        },
+        {
+          "test": "test_init_invalid_negative_numbers",
+          "line": 27,
+          "exception_type": "ValueError"
+        },
+        {
+          "test": "test_init_invalid_negative_numbers",
+          "line": 29,
+          "exception_type": "ValueError"
+        },
+        {
+          "test": "test_init_invalid_negative_numbers",
+          "line": 31,
+          "exception_type": "ValueError"
+        },
+        {
+          "test": "test_add_item_invalid_non_string_name",
+          "line": 59,
+          "exception_type": "TypeError"
+        },
+        {
+          "test": "test_add_item_invalid_non_positive_price",
+          "line": 64,
+          "exception_type": "ValueError"
+        },
+        {
+          "test": "test_add_item_invalid_non_positive_price",
+          "line": 66,
+          "exception_type": "ValueError"
+        },
+        {
+          "test": "test_add_item_invalid_non_numeric_price",
+          "line": 71,
+          "exception_type": "TypeError"
+        }
+      ],
+      "exception_quality_score": 0.0
+    },
+    "independence": {
+      "tests_modifying_self_count": 0,
+      "tests_with_class_variables_count": 0,
+      "tests_modifying_self": [],
+      "independence_score": 100,
+      "is_independent": true
+    },
+    "naming_quality": {
+      "total_tests": 14,
+      "average_name_length": 32.7,
+      "short_names_count": 0,
+      "descriptive_names_count": 10,
+      "naming_patterns": {
+        "should": 0,
+        "when": 0,
+        "given": 0,
+        "test_": 14,
+        "with": 0,
+        "returns": 0,
+        "raises": 0
+      },
+      "naming_quality_score": 71.4,
+      "short_names": []
+    },
+    "code_smells": {
+      "smells": {
+        "tests_without_assertions": [
+          {
+            "test": "test_remove_one_of_multiple_items",
+            "line": 96
+          }
+        ],
+        "very_long_tests": [],
+        "tests_with_try_except": [],
+        "tests_with_sleep": [],
+        "magic_numbers": [],
+        "commented_code_lines": 0
+      },
+      "smell_score": 80,
+      "total_smells_found": 1
+    }
+  },
+  "summary": {
+    "model": "groq-gpt-oss-120b",
+    "strategy": "chain_of_thought_prompting",
+    "context_type": "interface",
+    "timestamp": "2026-10-16T21:33:47.018928",
+    "response_time": 20.960320711135864,
+    "compilation_success_rate": 100,
+    "execution_success_rate": 0,
+    "tests_generated": 14,
+    "tests_passed": 12,
+    "tests_failed": 2,
+    "test_success_rate": 85.7,
+    "statement_coverage": 61,
+    "branch_coverage": 93,
+    "missing_statements": 34,
+    "total_statements": 93,
+    "mutation_score": 36.7,
+    "mutants_killed": 40,
+    "mutants_survived": 69,
+    "total_mutants": 109,
+    "total_test_methods": 14,
+    "total_assertions": 16,
+    "tests_with_error_handling": 14,
+    "methods_tested_count": 6,
+    "total_methods": 12,
+    "method_coverage_rate": 50.0,
+    "duplicate_tests_found": 0,
+    "avg_assertions_per_test": 1.14,
+    "assertion_quality_score": 100.0,
+    "weak_assertions_count": 0,
+    "strong_assertions_count": 16,
+    "exception_quality_score": 0.0,
+    "exception_tests_count": 14,
+    "tests_with_message_check": 0,
+    "independence_score": 100,
+    "is_independent": true,
+    "naming_quality_score": 71.4,
+    "average_name_length": 32.7,
+    "smell_score": 80,
+    "total_smells_found": 1,
+    "overall_quality_score": 77.7
+  }
+}

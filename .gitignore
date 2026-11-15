@@ -202,11 +202,11 @@ automation/docs/backups/
 * (Copy)*
 
 # Intermediate / scratch test run directories
-automation/cli_results/
-automation/cli_results_2/
-automation/cli_results_v2/
-automation/cli_results_v5/
-automation/cli_results_v8/
-automation/cli_results_v12/
-automation/cli_results_v1_fill_missing.json
+# automation/cli_results/
+# automation/cli_results_2/
+# automation/cli_results_v2/
+# automation/cli_results_v5/
+# automation/cli_results_v8/
+# automation/cli_results_v12/
+# automation/cli_results_v1_fill_missing.json
 
