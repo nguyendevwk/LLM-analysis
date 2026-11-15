@@ -162,8 +162,11 @@ def create_safe_results_archive(
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     clean_prefix = output_prefix.replace("/", "_").replace(":", "_").replace(" ", "_")
 
-    # Determine destination directory (current working directory by default)
+    # Determine destination directory: prioritize /kaggle/working if running on Kaggle
     dest_dir = Path.cwd()
+    kaggle_working = Path("/kaggle/working")
+    if kaggle_working.exists() and kaggle_working.is_dir():
+        dest_dir = kaggle_working
 
     created_archives: List[Path] = []
 
@@ -202,6 +205,16 @@ def create_safe_results_archive(
         return None
 
     primary_archive = created_archives[0]
+
+    # Create a convenience copy 'results_latest.zip' in dest_dir for 1-click download in Kaggle Save Version
+    if primary_archive.suffix == ".zip":
+        latest_zip = dest_dir / "results_latest.zip"
+        try:
+            shutil.copy2(primary_archive, latest_zip)
+            if latest_zip not in created_archives:
+                created_archives.append(latest_zip)
+        except Exception:
+            pass
 
     if verbose:
         size_kb = primary_archive.stat().st_size / 1024

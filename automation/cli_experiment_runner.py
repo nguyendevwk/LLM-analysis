@@ -286,6 +286,32 @@ class CLIExperimentRunner:
             logger.info("Experiment completed successfully")
             logger.info("Results saved to: %s", result_dir)
 
+            # Update statistical summary across all completed runs in setting_dir
+            try:
+                setting_dir = result_dir.parent
+                all_setting_runs = []
+                for item in sorted(setting_dir.iterdir()):
+                    if item.is_dir() and item.name.startswith("run_"):
+                        analysis_json = item / "analysis_results.json"
+                        if analysis_json.exists():
+                            try:
+                                with open(analysis_json, "r", encoding="utf-8") as f:
+                                    data = json.load(f)
+                                    if data.get("summary"):
+                                        all_setting_runs.append({
+                                            "run_id": item.name,
+                                            "result_dir": str(item),
+                                            "summary": data["summary"],
+                                        })
+                            except Exception:
+                                pass
+                if all_setting_runs:
+                    self._compute_and_save_statistical_summary(
+                        setting_dir, model_name, strategy_name, context_type, all_setting_runs
+                    )
+            except Exception as ex:
+                logger.debug(f"Could not update statistical summary for single run: {ex}")
+
             return {
                 'experiment': experiment_data,
                 'analysis': analysis_results,
@@ -548,7 +574,10 @@ class CLIExperimentRunner:
                     setting_dir.mkdir(parents=True, exist_ok=True)
                     setting_runs = []
 
-                    for run_idx in range(1, runs_per_setting + 1):
+                    start_run = self._get_next_run_id(setting_dir) if self.run_id != "overwrite" else 1
+
+                    for run_offset in range(runs_per_setting):
+                        run_idx = start_run + run_offset
                         current_run += 1
                         run_dir = setting_dir / f"run_{run_idx:03d}"
                         logger.info(
@@ -577,9 +606,28 @@ class CLIExperimentRunner:
                         # Clear intermediate generation tensors and garbage collect
                         free_gpu_memory(verbose=False)
 
-                    if setting_runs:
+                    # Collect all runs in setting_dir with valid analysis for complete statistical aggregation
+                    all_setting_runs = []
+                    for item in sorted(setting_dir.iterdir()):
+                        if item.is_dir() and item.name.startswith("run_"):
+                            analysis_json = item / "analysis_results.json"
+                            if analysis_json.exists():
+                                try:
+                                    with open(analysis_json, "r", encoding="utf-8") as f:
+                                        data = json.load(f)
+                                        if data.get("summary"):
+                                            all_setting_runs.append({
+                                                "run_id": item.name,
+                                                "result_dir": str(item),
+                                                "summary": data["summary"],
+                                            })
+                                except Exception:
+                                    pass
+
+                    runs_to_summarize = all_setting_runs if all_setting_runs else setting_runs
+                    if runs_to_summarize:
                         stat_summary = self._compute_and_save_statistical_summary(
-                            setting_dir, model_name, strategy, context, setting_runs
+                            setting_dir, model_name, strategy, context, runs_to_summarize
                         )
                         all_results[strategy][context] = stat_summary
 
