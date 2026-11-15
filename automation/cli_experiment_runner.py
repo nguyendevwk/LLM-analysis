@@ -38,7 +38,7 @@ from cli_automation import (
 import model_registry
 
 from experiment_runner import ExperimentRunner
-from prompt_strategies import SimplePrompting, ChainOfThoughtPrompting
+from prompt_strategies import SimplePrompting, ChainOfThoughtPrompting, MetamorphicPrompting
 
 logger = logging.getLogger(__name__)
 
@@ -192,6 +192,8 @@ class CLIExperimentRunner:
                     strategy = SimplePrompting(extractor=self.extractor)
                 elif strategy_name == "chain_of_thought_prompting":
                     strategy = ChainOfThoughtPrompting(extractor=self.extractor)
+                elif strategy_name == "metamorphic_prompting":
+                    strategy = MetamorphicPrompting(extractor=self.extractor)
                 else:
                     raise ValueError(f"Unknown strategy: {strategy_name}")
 
@@ -277,7 +279,7 @@ class CLIExperimentRunner:
 
     def run_full_scenario(self, model_name: str) -> list:
         """Run all strategies and context levels for one model."""
-        strategies = ['simple_prompting', 'chain_of_thought_prompting']
+        strategies = ['simple_prompting', 'chain_of_thought_prompting', 'metamorphic_prompting']
         contexts = ['interface', 'interface_docstring', 'full_context']
         total = len(strategies) * len(contexts)
         results = []
@@ -438,7 +440,7 @@ Examples:
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
     parser.add_argument('--model', help='Model name')
-    parser.add_argument('--strategy', choices=['simple_prompting', 'chain_of_thought_prompting'],
+    parser.add_argument('--strategy', choices=['simple_prompting', 'chain_of_thought_prompting', 'metamorphic_prompting'],
                         help='Prompting strategy')
     parser.add_argument('--context', choices=['interface', 'interface_docstring', 'full_context'],
                         help='Code context level')

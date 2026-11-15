@@ -163,8 +163,8 @@ tools required. Only a key in `.env` is needed:
    uv run python cli_experiment_runner.py --config configs/replication_free_providers.json
    ```
 
-6. Run the complete scenario for one model in a single command (2 strategies ×
-   3 context levels):
+6. Run the complete scenario for one model in a single command (3 strategies ×
+   3 context levels = 9 experiments):
 
    ```bash
    cd automation
@@ -173,7 +173,12 @@ tools required. Only a key in `.env` is needed:
      --full-scenario
    ```
 
-   The six experiment results are saved to `cli_full_scenario_results.json`.
+   Strategies evaluated:
+   - `simple_prompting`: Direct zero-shot test synthesis baseline.
+   - `chain_of_thought_prompting`: Step-by-step reasoning & test planning baseline.
+   - `metamorphic_prompting`: Proposed Metamorphic Testing strategy (MR-Monotone, MR-Idempotent, MR-Inverse, MR-Commutative, MR-Threshold).
+
+   The experiment results are saved to `cli_full_scenario_results.json`.
 
 ### OpenRouter Models (Free & Paid/Commercial)
 

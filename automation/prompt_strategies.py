@@ -112,6 +112,9 @@ class PromptStrategy:
         if strategy == "simple_prompting":
             key = context
             prompt_file = self.base_path / "simple_prompting" / context / "prompt.txt"
+        elif strategy == "metamorphic_prompting":
+            key = f"meta_{context}"
+            prompt_file = self.base_path / "metamorphic_prompting" / context / "prompt.txt"
         else:  # chain_of_thought_prompting
             key = f"cot_{context}"
             prompt_file = self.base_path / "chain_of_thought_prompting" / context / "prompt.txt"
@@ -267,6 +270,65 @@ class SimplePrompting(PromptStrategy):
                 'response': response,
                 'response_time': response_time,
                 'strategy': 'simple_prompting',
+                'context_type': context_type,
+                'prompt': final_prompt
+            }
+
+        return None
+
+
+class MetamorphicPrompting(PromptStrategy):
+    """
+    Metamorphic Testing prompting strategy: guides the LLM/SLM to formulate
+    and verify metamorphic relations (monotonicity, idempotence, reversibility,
+    commutativity, threshold step transitions, and strict exception messages).
+    """
+
+    def execute(self, llm_client, context_type):
+        """
+        Execute metamorphic prompting strategy.
+
+        Args:
+            llm_client: LLM client to send prompts to
+            context_type: One of 'interface', 'interface_docstring', 'full_context'
+
+        Returns:
+            Dictionary with response, timing, and metadata
+        """
+        logger.info(f"Executing metamorphic prompting strategy for {context_type}")
+
+        if self.extractor is not None:
+            # Universal mode - dynamic prompt generation
+            placeholders = self._get_placeholders(context_type)
+            final_prompt = self.template_manager.get_metamorphic_prompt(placeholders)
+            logger.info(f"Generated dynamic metamorphic prompt for {self.extractor.class_name}")
+        else:
+            # Legacy mode - load from file or dynamic template fallback
+            final_prompt = self.load_specific_prompt("metamorphic_prompting", context_type)
+            if not final_prompt:
+                from prompt_templates import PromptTemplateManager, PromptPlaceholders
+                tm = PromptTemplateManager()
+                ctx_code = self.get_context_content(context_type)
+                placeholders = PromptPlaceholders(
+                    class_name="OrderCalculator",
+                    module_name="order_calculator",
+                    import_statement="from order_calculator import OrderCalculator",
+                    context_code=ctx_code,
+                    context_level=context_type,
+                    helper_types="",
+                    public_methods_list=""
+                )
+                final_prompt = tm.get_metamorphic_prompt(placeholders)
+
+        response = llm_client.send_prompt(final_prompt)
+        response_time = getattr(llm_client, 'last_response_time', 0)
+
+        if response:
+            logger.info(f"Metamorphic prompting completed in {response_time:.2f}s")
+            return {
+                'response': response,
+                'response_time': response_time,
+                'strategy': 'metamorphic_prompting',
                 'context_type': context_type,
                 'prompt': final_prompt
             }

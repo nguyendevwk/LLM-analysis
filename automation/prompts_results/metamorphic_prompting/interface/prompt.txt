@@ -1,0 +1,60 @@
+Generate a comprehensive Python unit test suite for the class `OrderCalculator` using the principles of Metamorphic Testing (MT) and Property-Based Verification.
+
+Instructions:
+- Use the `unittest` framework.
+- In addition to standard functional checks, you MUST explicitly formulate and test the core **Metamorphic Relations (MRs)** and state invariants of `OrderCalculator`:
+  1. Monotonicity / Directionality Relations (MR-Monotone):
+     Verify that incremental inputs produce strictly directional outputs (e.g., adding positive items increases subtotal, higher discount decreases total).
+  2. Invariance & Idempotence Relations (MR-Idempotent):
+     Verify operations that should preserve state or produce identical results when repeated (e.g., calling clear_order twice, read-only getters leaving internal state unchanged).
+  3. Reversibility / Inverse Operations (MR-Inverse):
+     Verify that applying an operation and then its inverse (e.g., adding an item then removing it) restores the prior system state.
+  4. Commutativity & Permutation Invariance (MR-Commutative):
+     Verify that the order of independent operations does not affect the final aggregate outcome.
+  5. Boundary & Threshold Discontinuity Relations (MR-Threshold):
+     Verify exact behavior at and around critical thresholds (e.g., threshold - 0.01, exact threshold 100.0, threshold + 0.01).
+  6. Strict Exception Verification:
+     When verifying exceptions, check BOTH the exception type AND the specific error message:
+     `with self.assertRaises(ExpectedException) as ctx:`
+     `    ...`
+     `self.assertIn("expected phrase", str(ctx.exception))`
+
+- Ensure tests are atomic, clean, and use strong assertions (avoid `assert True`).
+- Output ONLY valid executable Python code enclosed in ```python ... ```.
+- IMPORTANT: Do NOT redefine or copy the `OrderCalculator` class. Simply import it using:
+  `from order_calculator import OrderCalculator`
+
+Below is the class interface (without implementation):
+
+```python
+from typing import TypedDict, List
+
+
+class Item(TypedDict)
+
+class OrderCalculator:
+    def __init__(self, tax_rate=0.23, free_shipping_threshold=100.0, shipping_cost=10.0):
+
+    def add_item(self, name: str, price: float, quantity: int = 1):
+
+    def remove_item(self, name: str):
+
+    def get_subtotal(self) -> float:
+
+    def apply_discount(self, subtotal: float, discount: float) -> float:
+
+    def calculate_shipping(self, discounted_subtotal: float) -> float:
+
+    def calculate_tax(self, amount: float) -> float:
+
+    def calculate_total(self, discount: float = 0.0) -> float:
+
+    def total_items(self) -> int:
+
+    def clear_order(self):
+
+    def list_items(self) -> List[str]:
+
+	def is_empty(self) -> bool:
+
+```

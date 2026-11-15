@@ -505,8 +505,12 @@ def render_config_view():
         with col2:
             strategy = st.selectbox(
                 "Strategy",
-                ["simple_prompting", "chain_of_thought_prompting"],
-                format_func=lambda x: "Simple Prompting" if "simple" in x else "Chain-of-Thought"
+                ["simple_prompting", "chain_of_thought_prompting", "metamorphic_prompting"],
+                format_func=lambda x: {
+                    "simple_prompting": "Simple Prompting",
+                    "chain_of_thought_prompting": "Chain-of-Thought",
+                    "metamorphic_prompting": "Metamorphic Testing (Proposed ⭐)"
+                }.get(x, x)
             )
 
         with col3:
@@ -595,7 +599,7 @@ def render_config_view():
 def parse_full_scenario_results(results_dir: str, model: str) -> list:
     """Load the latest result for each strategy/context combination."""
     results = []
-    for strategy in ["simple_prompting", "chain_of_thought_prompting"]:
+    for strategy in ["simple_prompting", "chain_of_thought_prompting", "metamorphic_prompting"]:
         for context in ["interface", "interface_docstring", "full_context"]:
             metrics = parse_experiment_results(results_dir, strategy, context, model)
             if metrics:

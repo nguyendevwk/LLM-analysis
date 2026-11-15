@@ -63,6 +63,39 @@ Below is the {context_level} of the class:
 ```'''
 
 
+METAMORPHIC_PROMPTING_TEMPLATE = '''Generate a comprehensive Python unit test suite for the class `{class_name}` using the principles of Metamorphic Testing (MT) and Property-Based Verification.
+
+Instructions:
+- Use the `unittest` framework.
+- In addition to standard functional checks, you MUST explicitly formulate and test the core **Metamorphic Relations (MRs)** and state invariants of `{class_name}`:
+  1. Monotonicity / Directionality Relations (MR-Monotone):
+     Verify that incremental inputs produce strictly directional outputs (e.g., adding positive items increases subtotal, higher discount decreases total).
+  2. Invariance & Idempotence Relations (MR-Idempotent):
+     Verify operations that should preserve state or produce identical results when repeated (e.g., calling reset/clear twice, read-only getters leaving internal state unchanged).
+  3. Reversibility / Inverse Operations (MR-Inverse):
+     Verify that applying an operation and then its inverse (e.g., adding an item then removing it) restores the prior system state.
+  4. Commutativity & Permutation Invariance (MR-Commutative):
+     Verify that the order of independent operations does not affect the final aggregate outcome.
+  5. Boundary & Threshold Discontinuity Relations (MR-Threshold):
+     Verify exact behavior at and around critical thresholds (e.g., threshold - 0.01, exact threshold, threshold + 0.01).
+  6. Strict Exception Verification:
+     When verifying exceptions, check BOTH the exception type AND the specific error message:
+     `with self.assertRaises(ExpectedException) as ctx:`
+     `    ...`
+     `self.assertIn("expected phrase", str(ctx.exception))`
+
+- Ensure tests are atomic, clean, and use strong assertions (avoid `assert True`).
+- Output ONLY valid executable Python code enclosed in ```python ... ```.
+- IMPORTANT: Do NOT redefine or copy the `{class_name}` class. Simply import it using:
+  `{import_statement}`
+
+Below is the {context_level} of the class:
+
+```python
+{context_code}
+```'''
+
+
 COT_STEP1_TEMPLATE = '''You are a software testing assistant. Your task is to generate a set of unit tests for a Python class provided below.
 
 The tests should:
@@ -153,6 +186,7 @@ class PromptTemplateManager:
         # Use built-in templates by default
         self._templates = {
             'simple': SIMPLE_PROMPTING_TEMPLATE,
+            'metamorphic': METAMORPHIC_PROMPTING_TEMPLATE,
             'cot_step1': COT_STEP1_TEMPLATE,
             'cot_step2': COT_STEP2_TEMPLATE,
             'cot_step3': COT_STEP3_TEMPLATE,
@@ -168,6 +202,11 @@ class PromptTemplateManager:
         simple_template = self.templates_dir / "simple_prompting" / "template.txt"
         if simple_template.exists():
             self._templates['simple'] = simple_template.read_text(encoding='utf-8')
+
+        # Metamorphic prompting template
+        meta_template = self.templates_dir / "metamorphic_prompting" / "template.txt"
+        if meta_template.exists():
+            self._templates['metamorphic'] = meta_template.read_text(encoding='utf-8')
 
         # CoT templates
         cot_dir = self.templates_dir / "chain_of_thought_prompting"
@@ -221,6 +260,18 @@ class PromptTemplateManager:
             Complete prompt string
         """
         return self.render_template('simple', placeholders)
+
+    def get_metamorphic_prompt(self, placeholders: PromptPlaceholders) -> str:
+        """
+        Generate a prompt for MetamorphicPrompting strategy.
+
+        Args:
+            placeholders: Values to substitute into the template
+
+        Returns:
+            Complete prompt string
+        """
+        return self.render_template('metamorphic', placeholders)
 
     def get_cot_prompts(self, placeholders: PromptPlaceholders) -> Dict[str, str]:
         """

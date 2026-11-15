@@ -551,7 +551,7 @@ def run_full_scenario_benchmark(
     extractor = ClassContextExtractor(source_file, class_name)
     template_mgr = PromptTemplateManager()
 
-    strategies = ["simple_prompting", "chain_of_thought_prompting"]
+    strategies = ["simple_prompting", "chain_of_thought_prompting", "metamorphic_prompting"]
     contexts = ["interface", "interface_docstring", "full_context"]
 
     results = []
@@ -568,6 +568,13 @@ def run_full_scenario_benchmark(
             placeholders = extractor.extract_context(context)
             if strategy == "simple_prompting":
                 prompt = f"Write unittest tests for:\n{placeholders}"
+                resp, telem = engine.generate(prompt, role="coder")
+            elif strategy == "metamorphic_prompting":
+                prompt = (
+                    f"Write a comprehensive unittest suite for:\n{placeholders}\n"
+                    "Focus strictly on Metamorphic Relations (Monotonicity, Invariance, Reversibility, "
+                    "Thresholds) and verify exception messages with assertRaises(Exception) as ctx."
+                )
                 resp, telem = engine.generate(prompt, role="coder")
             else:
                 p1 = f"Analyze class:\n{placeholders}"
@@ -670,7 +677,7 @@ def main():
             output_base=out_base / "full_scenario"
         )
         print("\n" + "=" * 70)
-        print(f"🏆 FULL SCENARIO FINISHED: {len(results)}/6 EXPERIMENTS")
+        print(f"🏆 FULL SCENARIO FINISHED: {len(results)}/{len(results)} EXPERIMENTS")
         print(f"{'Strategy':<25} | {'Context':<20} | {'Stmt Cov':<10} | {'Mutation':<10}")
         print("-" * 75)
         for r in results:
