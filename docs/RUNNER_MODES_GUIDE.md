@@ -46,27 +46,65 @@ Hệ thống cung cấp hai công cụ thực thi chính:
 
 ## 2. CLI Experiment Runner (`automation/cli_experiment_runner.py`)
 
-### Mode 1: Single Experiment (Thực nghiệm đơn lẻ)
-Dùng khi bạn muốn kiểm tra nhanh một mô hình trên một chiến lược và một mức ngữ cảnh cụ thể.
+### Mode 1: Single Experiment (Thực nghiệm đơn lẻ & Multi-Run Thống kê)
+Dùng khi bạn muốn kiểm tra một mô hình trên một chiến lược và ngữ cảnh cụ thể, hỗ trợ chạy $N$ lần lặp (`--runs N`) để tính toán độ tin cậy thống kê (Mean ± Std).
 
-* **Tham số bắt buộc:**
-  * `--model <tên_model>`: Định danh mô hình cần chạy.
+* **Tham số:**
+  * `--model <tên_model>`: Định danh mô hình cần chạy (vd: `hf-qwen-2.5-coder-7b`).
   * `--strategy <chiến_lược>`:
     * `simple_prompting`: Nhắc lệnh trực tiếp đơn giản.
     * `chain_of_thought_prompting`: Nhắc lệnh suy luận từng bước (CoT).
     * `metamorphic_prompting`: Kiểm thử biến thái dựa trên quan hệ Metamorphic Relations (Đề xuất ⭐).
+    * Hoặc danh sách cách nhau bởi dấu phẩy (`metamorphic,cot`) hoặc `all`.
   * `--context <mức_ngữ_cảnh>`:
     * `interface`: Chỉ cung cấp khai báo hàm/phương thức.
     * `interface_docstring`: Cung cấp khai báo hàm kèm docstring mô tả.
     * `full_context`: Cung cấp toàn bộ mã nguồn của lớp cần kiểm thử.
+    * Hoặc danh sách cách nhau bởi dấu phẩy (`full_context,interface`) hoặc `all`.
+  * `--runs <N>` hoặc `--iterations <N>` (Mới): Số lần lặp để tính độ lệch chuẩn (mặc định: `1`).
 
 * **Cú pháp ví dụ:**
 ```bash
+# Chạy 1 lần duy nhất (mặc định)
 python automation/cli_experiment_runner.py \
   --model hf-qwen-2.5-coder-7b \
   --strategy metamorphic_prompting \
   --context full_context
+
+# Chạy lặp 5 lần để tính Mean ± Std (Coverage, Mutation, Assertions, Response Time)
+python automation/cli_experiment_runner.py \
+  --model hf-qwen-2.5-coder-7b \
+  --strategy metamorphic_prompting \
+  --context full_context \
+  --runs 5
 ```
+
+---
+
+### Mode 1.1: Multi-Context Matrix (So sánh nhiều mức ngữ cảnh trong 1 lệnh)
+Hỗ trợ chạy cùng 1 chiến lược trên nhiều mức ngữ cảnh khác nhau mà không cần gõ nhiều lệnh riêng lẻ. Hệ thống sẽ tự động tổng hợp bảng so sánh chéo (`cross_context_summary.md`):
+
+* **Cú pháp ví dụ:**
+```bash
+# Chạy cả 3 mức context (interface, interface_docstring, full_context), mỗi mức 3 lần lặp:
+python automation/cli_experiment_runner.py \
+  --model hf-qwen-2.5-coder-7b \
+  --strategy metamorphic_prompting \
+  --context all \
+  --runs 3
+
+# Hoặc chọn 2 ngữ cảnh cụ thể:
+python automation/cli_experiment_runner.py \
+  --model hf-qwen-2.5-coder-7b \
+  --strategy metamorphic_prompting \
+  --context full_context,interface \
+  --runs 5
+```
+
+> **Cơ chế quản lý VRAM thông minh (Zero VRAM Leak):**
+> * Mô hình chỉ được nạp lên GPU **1 lần duy nhất** trong suốt các lần lặp, tránh lãng phí thời gian reload weights.
+> * Giữa mỗi lần chạy (`run`), hệ thống tự động dọn dẹp bộ nhớ đệm KV cache và activation tensors (`free_gpu_memory(verbose=False)`).
+> * Khi kết thúc toàn bộ thực nghiệm (hoặc khi gặp lỗi/ngắt lệnh), hệ thống tự động `unload_model()` và giải phóng **100% VRAM về 0.00 GB**, cho phép người dùng chạy tiếp thực nghiệm khác trên Kaggle mà **không cần Restart Kernel**.
 
 ---
 
@@ -168,9 +206,10 @@ python automation/cli_experiment_runner.py \
 | Tham số | Kiểu dữ liệu | Giá trị mặc định | Giải thích chi tiết |
 | :--- | :--- | :--- | :--- |
 | `--model` | Chuỗi | Bắt buộc (trừ Utility) | Tên model (`hf-*`, `openrouter:*`, `groq:*`, `gemini-*`) |
-| `--strategy` | Lựa chọn | `None` | `simple_prompting`, `chain_of_thought_prompting`, `metamorphic_prompting` |
-| `--context` | Lựa chọn | `None` | `interface`, `interface_docstring`, `full_context` |
-| `--full-scenario`| Cờ bool | `False` | Tự động chạy đủ 9 kết hợp cho 1 model |
+| `--strategy` | Chuỗi | `None` | `simple_prompting`, `chain_of_thought_prompting`, `metamorphic_prompting` (hoặc danh sách phẩy, hoặc `all`) |
+| `--context` | Chuỗi | `None` | `interface`, `interface_docstring`, `full_context` (hoặc danh sách phẩy, hoặc `all`) |
+| `--runs`, `--iterations`| Số nguyên | `1` | **Mới:** Số lần lặp để tính Mean ± Std (Coverage, Mutation, Assertions, Response Time) |
+| `--full-scenario`| Cờ bool | `False` | Tự động chạy đủ 9 kết hợp (3 strategies x 3 contexts) cho 1 model |
 | `--config` | Đường dẫn | `None` | Đường dẫn file JSON chạy batch |
 | `--results-dir` | Đường dẫn | `cli_results_v1` | Thư mục lưu kết quả thực nghiệm, test code và báo cáo |
 | `--run-id` | Số / Chuỗi | `None` (auto-inc) | ID phiên chạy: số nguyên `1`, `2` hoặc `overwrite` để ghi đè |
@@ -260,28 +299,54 @@ pip install -q --no-warn-conflicts "mutmut==2.5.1" "rich<14"
 
 ## 5. Bảng Cheatsheet Lệnh Copy-Paste Nhanh
 
-### Chạy 1 lệnh Metamorphic Prompting trên Kaggle:
+### Chạy Thực Nghiệm Multi-Run Lấy Thống Kê (Mean ± Std) & Tự Động Trả VRAM:
 ```bash
 %%bash
 pip uninstall -y mutmut
 pip install -q --no-warn-conflicts "mutmut==2.5.1" "rich<14"
 cd /kaggle/working/LLM-analysis
 git pull origin main
+
+# Chạy lặp 5 lần cho 1 kịch bản:
 python automation/cli_experiment_runner.py \
   --model hf-qwen-2.5-coder-7b \
   --strategy metamorphic_prompting \
-  --context full_context
+  --context full_context \
+  --runs 5
 ```
 
-### Chạy Council Dual-GPU (Coder + Critic) trên Kaggle:
+### Chạy So Sánh Cả 3 Mức Ngữ Cảnh (Cross-Context Comparison) Trong 1 Lệnh Duy Nhất:
 ```bash
 %%bash
 cd /kaggle/working/LLM-analysis
 git pull origin main
-python kaggle/council_runner.py --mode council --load-in-4bit
+
+# Chạy cả 3 context (interface, interface_docstring, full_context), lặp 3 lần mỗi context:
+python automation/cli_experiment_runner.py \
+  --model hf-qwen-2.5-coder-7b \
+  --strategy metamorphic_prompting \
+  --context all \
+  --runs 3
 ```
 
-### Xem kết quả thực nghiệm vừa chạy:
+### Chạy Toàn Bộ Ma Trận 3 Strategies x 3 Contexts (Multi-Run Full Scenario):
 ```bash
-cat cli_results_v1/metamorphic_prompting/full_context/hf-qwen-2.5-coder-7b/run_*/podsumowanie-*.md
+%%bash
+cd /kaggle/working/LLM-analysis
+git pull origin main
+
+# Tự động chạy đủ 9 kịch bản, mỗi kịch bản 3 lần lặp (tổng 27 runs):
+python automation/cli_experiment_runner.py \
+  --model hf-qwen-2.5-coder-7b \
+  --full-scenario \
+  --runs 3
+```
+
+### Xem Báo Cáo Thống Kê & Bảng So Sánh Vừa Chạy:
+```bash
+# Xem báo cáo thống kê Mean ± Std:
+cat cli_results_v1/metamorphic_prompting/full_context/hf-qwen-2.5-coder-7b/statistical_summary.md
+
+# Xem bảng so sánh chéo các mức ngữ cảnh:
+cat cli_results_v1/metamorphic_prompting/hf-qwen-2.5-coder-7b/cross_context_summary.md
 ```

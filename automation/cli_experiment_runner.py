@@ -27,8 +27,11 @@ Usage:
 
 import logging
 import json
+import csv
+import gc
+import statistics
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Tuple
 
 from cli_automation import (
     ClaudeCodeClient,
@@ -41,6 +44,46 @@ from experiment_runner import ExperimentRunner
 from prompt_strategies import SimplePrompting, ChainOfThoughtPrompting, MetamorphicPrompting
 
 logger = logging.getLogger(__name__)
+
+
+def free_gpu_memory(verbose: bool = False):
+    """
+    Release cached GPU memory and run Python garbage collection.
+    Helps prevent VRAM fragmentation and leaks across repeated runs.
+    """
+    gc.collect()
+    try:
+        import torch
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            if hasattr(torch.cuda, "ipc_collect"):
+                torch.cuda.ipc_collect()
+            allocated = torch.cuda.memory_allocated() / (1024 ** 3)
+            reserved = torch.cuda.memory_reserved() / (1024 ** 3)
+            if verbose:
+                msg = f"[VRAM Status] GPU memory released: Allocated={allocated:.2f}GB, Reserved={reserved:.2f}GB"
+                logger.info(msg)
+                print(msg)
+    except ImportError:
+        pass
+
+
+METRIC_SPECS = [
+    ("statement_coverage", "Statement Coverage", "%"),
+    ("branch_coverage", "Branch Coverage", "%"),
+    ("mutation_score", "Mutation Score", "%"),
+    ("test_success_rate", "Test Success Rate", "%"),
+    ("method_coverage_rate", "Method Coverage Rate", "%"),
+    ("overall_quality_score", "Overall Quality Score", "%"),
+    ("total_assertions", "Total Assertions", "count"),
+    ("avg_assertions_per_test", "Avg Assertions / Test", "ratio"),
+    ("tests_generated", "Tests Generated", "count"),
+    ("tests_passed", "Tests Passed", "count"),
+    ("tests_failed", "Tests Failed", "count"),
+    ("mutants_killed", "Mutants Killed", "count"),
+    ("total_mutants", "Total Mutants", "count"),
+    ("response_time", "Response Time", "s"),
+]
 
 
 class CLIExperimentRunner:
@@ -147,16 +190,8 @@ class CLIExperimentRunner:
         logger.info(f"Using specified run: run_{self.run_id:03d}")
         return run_dir
 
-    def run_single_experiment(
-        self,
-        model_name: str,
-        strategy_name: str,
-        context_type: str
-    ) -> dict:
-        logger.info(f"Starting CLI experiment: {model_name} - {strategy_name} - {context_type}")
-
-        # Resolve free-provider models: registered names pass through,
-        # ad-hoc 'provider:model-id' syntax maps to a filesystem-safe name.
+    def _resolve_model_name(self, model_name: str) -> str:
+        """Resolve model name and register ad-hoc providers if necessary."""
         resolved = model_registry.resolve_model(model_name)
         if resolved is not None:
             spec, canonical = resolved
@@ -168,7 +203,7 @@ class CLIExperimentRunner:
                     "Registered ad-hoc model %s (%s/%s)",
                     canonical, spec.provider, spec.model_id
                 )
-            model_name = canonical
+            return canonical
         elif model_name not in self.cli_clients:
             raise ValueError(
                 f"Unknown model: {model_name}. "
@@ -176,64 +211,402 @@ class CLIExperimentRunner:
                 f"Ad-hoc syntax: openrouter:org/model | groq:model-id | "
                 f"gemini:model-id | local:model-id | hf:repo-id"
             )
+        return model_name
 
-        result_dir = self._get_result_dir(strategy_name, context_type, model_name)
+    def run_single_experiment(
+        self,
+        model_name: str,
+        strategy_name: str,
+        context_type: str,
+        existing_client: Optional[Any] = None,
+        custom_run_dir: Optional[Path] = None,
+    ) -> Optional[dict]:
+        logger.info(f"Starting CLI experiment: {model_name} - {strategy_name} - {context_type}")
+
+        model_name = self._resolve_model_name(model_name)
+
+        if custom_run_dir is not None:
+            result_dir = Path(custom_run_dir)
+        else:
+            result_dir = self._get_result_dir(strategy_name, context_type, model_name)
         result_dir.mkdir(parents=True, exist_ok=True)
         logger.info(f"Results will be saved to: {result_dir}")
 
+        client = None
+        should_close = False
         try:
-            client_factory = self.cli_clients[model_name]
+            if existing_client is not None:
+                client = existing_client
+                should_close = False
+            else:
+                client_factory = self.cli_clients[model_name]
+                client = client_factory()
+                if hasattr(client, "__enter__"):
+                    client = client.__enter__()
+                should_close = True
 
-            with client_factory() as client:
-                logger.info(f"Initialized client: {client}")
+            logger.info(f"Initialized client: {client}")
 
-                # Create strategy with extractor for universal mode
-                if strategy_name == "simple_prompting":
-                    strategy = SimplePrompting(extractor=self.extractor)
-                elif strategy_name == "chain_of_thought_prompting":
-                    strategy = ChainOfThoughtPrompting(extractor=self.extractor)
-                elif strategy_name == "metamorphic_prompting":
-                    strategy = MetamorphicPrompting(extractor=self.extractor)
-                else:
-                    raise ValueError(f"Unknown strategy: {strategy_name}")
+            # Create strategy with extractor for universal mode
+            if strategy_name == "simple_prompting":
+                strategy = SimplePrompting(extractor=self.extractor)
+            elif strategy_name == "chain_of_thought_prompting":
+                strategy = ChainOfThoughtPrompting(extractor=self.extractor)
+            elif strategy_name == "metamorphic_prompting":
+                strategy = MetamorphicPrompting(extractor=self.extractor)
+            else:
+                raise ValueError(f"Unknown strategy: {strategy_name}")
 
-                logger.info(f"Executing {strategy_name} strategy...")
-                strategy_result = strategy.execute(client, context_type)
+            logger.info(f"Executing {strategy_name} strategy...")
+            strategy_result = strategy.execute(client, context_type)
 
-                if not strategy_result:
-                    logger.error("Strategy execution failed")
-                    return None
+            if not strategy_result:
+                logger.error("Strategy execution failed")
+                return None
 
-                # Create analysis runner with extractor for universal mode
-                analysis_runner = ExperimentRunner(extractor=self.extractor)
+            # Create analysis runner with extractor for universal mode
+            analysis_runner = ExperimentRunner(extractor=self.extractor)
 
-                experiment_data = analysis_runner.save_experiment_results(
-                    result_dir,
-                    strategy_result,
-                    model_name,
-                    strategy_name,
-                    context_type
-                )
+            experiment_data = analysis_runner.save_experiment_results(
+                result_dir,
+                strategy_result,
+                model_name,
+                strategy_name,
+                context_type
+            )
 
-                if not experiment_data:
-                    logger.error("Failed to save experiment results")
-                    return None
+            if not experiment_data:
+                logger.error("Failed to save experiment results")
+                return None
 
-                logger.info("Running analysis pipeline...")
-                analysis_results = analysis_runner.run_analysis(result_dir, experiment_data)
+            logger.info("Running analysis pipeline...")
+            analysis_results = analysis_runner.run_analysis(result_dir, experiment_data)
 
-                logger.info("Experiment completed successfully")
-                logger.info("Results saved to: %s", result_dir)
+            logger.info("Experiment completed successfully")
+            logger.info("Results saved to: %s", result_dir)
 
-                return {
-                    'experiment': experiment_data,
-                    'analysis': analysis_results,
-                    'result_dir': str(result_dir)
-                }
+            return {
+                'experiment': experiment_data,
+                'analysis': analysis_results,
+                'result_dir': str(result_dir)
+            }
 
         except Exception as e:
             logger.error(f"Experiment failed: {e}", exc_info=True)
             return None
+        finally:
+            if should_close and client is not None:
+                if hasattr(client, "__exit__"):
+                    try:
+                        client.__exit__(None, None, None)
+                    except Exception:
+                        pass
+                elif hasattr(client, "close"):
+                    try:
+                        client.close()
+                    except Exception:
+                        pass
+                del client
+                free_gpu_memory(verbose=False)
+
+    def _compute_and_save_statistical_summary(
+        self,
+        target_dir: Path,
+        model_name: str,
+        strategy_name: str,
+        context_type: str,
+        setting_runs: List[dict]
+    ) -> dict:
+        """
+        Compute mean, std, min, max across runs and save JSON, CSV, MD summaries.
+        """
+        metrics_stats = {}
+        for key, label, unit in METRIC_SPECS:
+            vals = []
+            for r in setting_runs:
+                s = r.get('summary') or {}
+                v = s.get(key)
+                if v is not None:
+                    try:
+                        vals.append(float(v))
+                    except (ValueError, TypeError):
+                        pass
+
+            if vals:
+                mean_v = round(statistics.mean(vals), 2)
+                std_v = round(statistics.stdev(vals), 2) if len(vals) > 1 else 0.0
+                min_v = round(min(vals), 2)
+                max_v = round(max(vals), 2)
+            else:
+                mean_v, std_v, min_v, max_v = 0.0, 0.0, 0.0, 0.0
+
+            metrics_stats[key] = {
+                'label': label,
+                'unit': unit,
+                'mean': mean_v,
+                'std': std_v,
+                'min': min_v,
+                'max': max_v,
+                'values': vals,
+            }
+
+        summary_data = {
+            'model': model_name,
+            'strategy': strategy_name,
+            'context': context_type,
+            'total_runs': len(setting_runs),
+            'successful_runs': len([r for r in setting_runs if r.get('summary')]),
+            'metrics': metrics_stats,
+            'runs': setting_runs,
+        }
+
+        # 1. Save JSON
+        json_file = target_dir / "statistical_summary.json"
+        with open(json_file, 'w', encoding='utf-8') as f:
+            json.dump(summary_data, f, indent=2, default=str)
+
+        # 2. Save CSV
+        csv_file = target_dir / "statistical_summary.csv"
+        with open(csv_file, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            writer.writerow(["Metric", "Mean", "Std", "Min", "Max", "Unit"])
+            for key, label, unit in METRIC_SPECS:
+                m = metrics_stats[key]
+                writer.writerow([label, m['mean'], m['std'], m['min'], m['max'], unit])
+
+        # 3. Save Markdown
+        md_file = target_dir / "statistical_summary.md"
+        md_lines = [
+            f"# Statistical Evaluation Summary",
+            f"",
+            f"- **Model:** `{model_name}`",
+            f"- **Prompt Strategy:** `{strategy_name}`",
+            f"- **Context Level:** `{context_type}`",
+            f"- **Total Executions:** {len(setting_runs)} runs",
+            f"",
+            f"| Metric | Mean ± Std | Min | Max | Unit |",
+            f"| :--- | :--- | :--- | :--- | :--- |",
+        ]
+        for key, label, unit in METRIC_SPECS:
+            m = metrics_stats[key]
+            unit_suffix = "%" if unit == "%" else ("s" if unit == "s" else "")
+            mean_std_str = f"{m['mean']} ± {m['std']}{unit_suffix}"
+            md_lines.append(f"| {label} | {mean_std_str} | {m['min']}{unit_suffix} | {m['max']}{unit_suffix} | {unit} |")
+
+        md_lines.extend([
+            f"",
+            f"### Per-Run Detail",
+            f"",
+            f"| Run ID | Statement Cov (%) | Branch Cov (%) | Mutation Score (%) | Test Pass Rate (%) | Tests (Pass/Total) | Mutants Killed | Response Time |",
+            f"| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |",
+        ])
+        for r in setting_runs:
+            s = r.get('summary') or {}
+            run_id = r.get('run_id', 'unknown')
+            st_cov = s.get('statement_coverage', 0)
+            br_cov = s.get('branch_coverage', 0)
+            mut_score = s.get('mutation_score', 0)
+            pass_rate = s.get('test_success_rate', 0)
+            tests_run = s.get('tests_generated', 0)
+            tests_passed = s.get('tests_passed', 0)
+            mut_killed = s.get('mutants_killed', 0)
+            total_mut = s.get('total_mutants', 0)
+            resp_time = s.get('response_time', 0)
+            md_lines.append(
+                f"| `{run_id}` | {st_cov}% | {br_cov}% | {mut_score}% | {pass_rate}% | "
+                f"{tests_passed}/{tests_run} | {mut_killed}/{total_mut} | {resp_time:.2f}s |"
+            )
+
+        md_lines.append("")
+        with open(md_file, 'w', encoding='utf-8') as f:
+            f.write('\n'.join(md_lines))
+
+        logger.info(f"Statistical summaries saved in {target_dir}")
+        return summary_data
+
+    def _generate_cross_context_comparison(
+        self,
+        target_dir: Path,
+        model_name: str,
+        strategy_name: str,
+        context_results: Dict[str, dict]
+    ) -> dict:
+        """
+        Generate cross-context comparison table (JSON, CSV, MD) across context levels.
+        """
+        contexts = list(context_results.keys())
+        comparison_data = {
+            'model': model_name,
+            'strategy': strategy_name,
+            'contexts': contexts,
+            'metrics': {},
+        }
+
+        for key, label, unit in METRIC_SPECS:
+            comparison_data['metrics'][key] = {
+                'label': label,
+                'unit': unit,
+                'contexts': {
+                    ctx: context_results[ctx]['metrics'][key]
+                    for ctx in contexts
+                    if key in context_results[ctx].get('metrics', {})
+                }
+            }
+
+        # 1. JSON
+        json_file = target_dir / "cross_context_summary.json"
+        with open(json_file, 'w', encoding='utf-8') as f:
+            json.dump(comparison_data, f, indent=2, default=str)
+
+        # 2. CSV
+        csv_file = target_dir / "cross_context_summary.csv"
+        with open(csv_file, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            header = ["Metric", "Unit"]
+            for ctx in contexts:
+                header.extend([f"{ctx}_mean", f"{ctx}_std"])
+            writer.writerow(header)
+
+            for key, label, unit in METRIC_SPECS:
+                row = [label, unit]
+                for ctx in contexts:
+                    m = context_results[ctx]['metrics'].get(key, {})
+                    row.extend([m.get('mean', 0.0), m.get('std', 0.0)])
+                writer.writerow(row)
+
+        # 3. Markdown
+        md_file = target_dir / "cross_context_summary.md"
+        md_lines = [
+            f"# Cross-Context Comparison Report",
+            f"",
+            f"- **Model:** `{model_name}`",
+            f"- **Prompt Strategy:** `{strategy_name}`",
+            f"- **Evaluated Contexts:** {', '.join([f'`{c}`' for c in contexts])}",
+            f"",
+            f"| Metric | " + " | ".join([f"{ctx}" for ctx in contexts]) + " |",
+            f"| :--- | " + " | ".join([":---" for _ in contexts]) + " |",
+        ]
+        for key, label, unit in METRIC_SPECS:
+            unit_suffix = "%" if unit == "%" else ("s" if unit == "s" else "")
+            cells = []
+            for ctx in contexts:
+                m = context_results[ctx]['metrics'].get(key, {})
+                mean_v = m.get('mean', 0.0)
+                std_v = m.get('std', 0.0)
+                cells.append(f"{mean_v} ± {std_v}{unit_suffix}")
+            md_lines.append(f"| {label} | " + " | ".join(cells) + " |")
+
+        md_lines.append("")
+        with open(md_file, 'w', encoding='utf-8') as f:
+            f.write('\n'.join(md_lines))
+
+        logger.info(f"Cross-context comparison saved to {target_dir}")
+        return comparison_data
+
+    def run_matrix_with_statistics(
+        self,
+        model_name: str,
+        strategies: List[str],
+        contexts: List[str],
+        runs_per_setting: int = 1,
+    ) -> Dict[str, Any]:
+        """
+        Execute experiments across strategies and contexts with N runs per setting.
+        Reuses client across runs, empties CUDA cache between iterations,
+        and guarantees complete VRAM unloading upon completion.
+        """
+        model_name = self._resolve_model_name(model_name)
+        client = None
+        all_results = {}
+
+        try:
+            client_factory = self.cli_clients[model_name]
+            client = client_factory()
+            if hasattr(client, "__enter__"):
+                client = client.__enter__()
+
+            total_settings = len(strategies) * len(contexts)
+            total_runs = total_settings * runs_per_setting
+            current_run = 0
+
+            logger.info(
+                f"\n{'='*70}\n"
+                f"Starting Matrix Experiment Suite:\n"
+                f"  Model: {model_name}\n"
+                f"  Strategies ({len(strategies)}): {', '.join(strategies)}\n"
+                f"  Contexts ({len(contexts)}): {', '.join(contexts)}\n"
+                f"  Runs per setting: {runs_per_setting}\n"
+                f"  Total runs to execute: {total_runs}\n"
+                f"{'='*70}\n"
+            )
+
+            for strat_idx, strategy in enumerate(strategies, 1):
+                all_results[strategy] = {}
+                for ctx_idx, context in enumerate(contexts, 1):
+                    setting_dir = self.base_results_dir / strategy / context / model_name
+                    setting_dir.mkdir(parents=True, exist_ok=True)
+                    setting_runs = []
+
+                    for run_idx in range(1, runs_per_setting + 1):
+                        current_run += 1
+                        run_dir = setting_dir / f"run_{run_idx:03d}"
+                        logger.info(
+                            f"\n[{current_run}/{total_runs}] Running: "
+                            f"{strategy} | {context} | {model_name} | run_{run_idx:03d}"
+                        )
+
+                        res = self.run_single_experiment(
+                            model_name=model_name,
+                            strategy_name=strategy,
+                            context_type=context,
+                            existing_client=client,
+                            custom_run_dir=run_dir,
+                        )
+
+                        if res and res.get('analysis') and res['analysis'].get('summary'):
+                            setting_runs.append({
+                                'run_idx': run_idx,
+                                'run_id': f"run_{run_idx:03d}",
+                                'result_dir': str(run_dir),
+                                'summary': res['analysis']['summary'],
+                            })
+                        else:
+                            logger.warning(f"Run {run_idx} for {strategy}/{context} produced no summary.")
+
+                        # Clear intermediate generation tensors and garbage collect
+                        free_gpu_memory(verbose=False)
+
+                    if setting_runs:
+                        stat_summary = self._compute_and_save_statistical_summary(
+                            setting_dir, model_name, strategy, context, setting_runs
+                        )
+                        all_results[strategy][context] = stat_summary
+
+                # If multiple contexts were executed for this strategy, generate cross-context comparison
+                if len(contexts) > 1 and all_results[strategy]:
+                    cross_dir = self.base_results_dir / strategy / model_name
+                    cross_dir.mkdir(parents=True, exist_ok=True)
+                    self._generate_cross_context_comparison(
+                        cross_dir, model_name, strategy, all_results[strategy]
+                    )
+
+        finally:
+            # Complete teardown and VRAM release
+            if client is not None:
+                if hasattr(client, "__exit__"):
+                    try:
+                        client.__exit__(None, None, None)
+                    except Exception:
+                        pass
+                elif hasattr(client, "close"):
+                    try:
+                        client.close()
+                    except Exception:
+                        pass
+                del client
+            free_gpu_memory(verbose=True)
+
+        return all_results
 
     def run_batch_experiments(self, config_file: str) -> list:
         logger.info(f"Running batch experiments from: {config_file}")
@@ -277,39 +650,16 @@ class CLIExperimentRunner:
 
         return results
 
-    def run_full_scenario(self, model_name: str) -> list:
-        """Run all strategies and context levels for one model."""
+    def run_full_scenario(self, model_name: str, runs_per_setting: int = 1) -> dict:
+        """Run all 3 strategies and all 3 context levels for one model with multi-run statistics."""
         strategies = ['simple_prompting', 'chain_of_thought_prompting', 'metamorphic_prompting']
         contexts = ['interface', 'interface_docstring', 'full_context']
-        total = len(strategies) * len(contexts)
-        results = []
-
-        logger.info(
-            "Running full scenario for %s: %d experiments",
-            model_name, total
+        return self.run_matrix_with_statistics(
+            model_name=model_name,
+            strategies=strategies,
+            contexts=contexts,
+            runs_per_setting=runs_per_setting,
         )
-        for index, (strategy, context) in enumerate(
-            ((strategy, context) for strategy in strategies for context in contexts),
-            start=1
-        ):
-            logger.info(
-                "Full scenario experiment %d/%d: %s - %s",
-                index, total, strategy, context
-            )
-            result = self.run_single_experiment(model_name, strategy, context)
-            if result:
-                results.append(result)
-            else:
-                logger.error(
-                    "Full scenario experiment %d/%d failed: %s - %s",
-                    index, total, strategy, context
-                )
-
-        logger.info(
-            "Full scenario completed: %d/%d experiments successful",
-            len(results), total
-        )
-        return results
 
     def get_available_models(self) -> list:
         return list(self.cli_clients.keys())
@@ -399,16 +749,70 @@ class CLIExperimentRunner:
         return ready
 
 
+ALL_STRATEGIES = ['simple_prompting', 'chain_of_thought_prompting', 'metamorphic_prompting']
+ALL_CONTEXTS = ['interface', 'interface_docstring', 'full_context']
+
+STRATEGY_MAP = {
+    'simple': 'simple_prompting',
+    'simple_prompting': 'simple_prompting',
+    'simple-prompting': 'simple_prompting',
+    'cot': 'chain_of_thought_prompting',
+    'chain_of_thought': 'chain_of_thought_prompting',
+    'chain_of_thought_prompting': 'chain_of_thought_prompting',
+    'chain-of-thought-prompting': 'chain_of_thought_prompting',
+    'metamorphic': 'metamorphic_prompting',
+    'metamorphic_prompting': 'metamorphic_prompting',
+    'metamorphic-prompting': 'metamorphic_prompting',
+}
+
+CONTEXT_MAP = {
+    'interface': 'interface',
+    'interface_only': 'interface',
+    'interface-only': 'interface',
+    'interface_docstring': 'interface_docstring',
+    'interface-docstring': 'interface_docstring',
+    'docstring': 'interface_docstring',
+    'full': 'full_context',
+    'full_context': 'full_context',
+    'full-context': 'full_context',
+}
+
+
+def parse_multi_values(val: Optional[str], all_list: List[str], mapping: dict) -> List[str]:
+    """Parse comma-separated values or 'all' into normalized list."""
+    if not val:
+        return []
+    s = val.strip()
+    if s.lower() == 'all':
+        return list(all_list)
+    items = []
+    for piece in s.split(','):
+        p = piece.strip().lower()
+        if not p:
+            continue
+        mapped = mapping.get(p, p)
+        if mapped not in all_list:
+            raise ValueError(f"Unknown value '{piece}'. Valid options: {', '.join(all_list)} or 'all'")
+        if mapped not in items:
+            items.append(mapped)
+    return items
+
+
 def main():
     import argparse
 
     parser = argparse.ArgumentParser(
-        description='CLI Experiment Runner with multi-run support',
+        description='CLI Experiment Runner with multi-run statistical support and zero VRAM leak',
         epilog='''
-Run ID modes:
+Run ID & Multi-run modes:
+  - --runs N / --iterations N: Execute N runs per setting to calculate mean, std, min, max
   - No --run-id: Auto-increment (creates run_001, run_002, etc.)
   - --run-id N: Use specific run number (e.g., --run-id 1 creates run_001)
   - --run-id overwrite: Legacy mode, no run numbering (overwrites existing results)
+
+Context & Strategy Multi-selection:
+  - Comma-separated: --context full_context,interface,interface_docstring
+  - All: --context all (or --strategy all)
 
 Source file modes:
   - No --source-file: Legacy mode (OrderCalculator)
@@ -416,37 +820,30 @@ Source file modes:
   - --source-file path/to/class.py --class-name ClassName: Specify class if multiple
 
 Examples:
-  # Legacy mode - OrderCalculator (creates run_001)
+  # Multi-run statistical evaluation (5 runs of metamorphic prompting on full context)
+  python cli_experiment_runner.py --model hf-qwen-2.5-coder-7b --strategy metamorphic_prompting --context full_context --runs 5
+
+  # Multi-context comparison in a single run (cross-context statistics table)
+  python cli_experiment_runner.py --model hf-qwen-2.5-coder-7b --strategy metamorphic_prompting --context all --runs 3
+
+  # Full scenario (all 3 strategies x all 3 contexts x 3 runs = 27 runs)
+  python cli_experiment_runner.py --model hf-qwen-2.5-coder-7b --full-scenario --runs 3
+
+  # Legacy single run
   python cli_experiment_runner.py --model claude-code-sonnet-4.5 --strategy simple_prompting --context interface
-
-  # Free providers (API key only, no CLI tools) — put keys in ../.env first
-  python cli_experiment_runner.py --check-providers
-  python cli_experiment_runner.py --model gemini-api-3.8-flash --strategy simple_prompting --context interface
-  python cli_experiment_runner.py --model openrouter-gemma-4-31b-it --strategy chain_of_thought_prompting --context full_context
-  python cli_experiment_runner.py --model "groq:openai/gpt-oss-120b" --strategy simple_prompting --context interface_docstring
-
-  # Universal mode - any class
-  python cli_experiment_runner.py --source-file my_module.py --model claude-code-sonnet-4.5 --strategy simple_prompting --context full_context
-
-  # Universal mode with specific class name
-  python cli_experiment_runner.py --source-file my_module.py --class-name MyClass --model claude-code-sonnet-4.5 --strategy simple_prompting --context interface
-
-  # Batch with auto-increment
-  python cli_experiment_runner.py --config cli_config.json
-
-  # Full scenario for one model (2 strategies x 3 context levels)
-  python cli_experiment_runner.py --model gemini-api-3.8-flash --full-scenario
         ''',
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
     parser.add_argument('--model', help='Model name')
-    parser.add_argument('--strategy', choices=['simple_prompting', 'chain_of_thought_prompting', 'metamorphic_prompting'],
-                        help='Prompting strategy')
-    parser.add_argument('--context', choices=['interface', 'interface_docstring', 'full_context'],
-                        help='Code context level')
+    parser.add_argument('--strategy', type=str, default=None,
+                        help='Prompting strategy (or comma-separated list, or "all")')
+    parser.add_argument('--context', type=str, default=None,
+                        help='Code context level (or comma-separated list, or "all")')
+    parser.add_argument('--runs', '--iterations', type=int, default=1, dest='runs',
+                        help='Number of runs per setting to compute statistics (default: 1)')
     parser.add_argument('--config', help='JSON config file for batch experiments')
     parser.add_argument('--full-scenario', action='store_true',
-                        help='Run both strategies across all three context levels for one model')
+                        help='Run all 3 strategies across all three context levels for one model')
     parser.add_argument('--list-models', action='store_true',
                         help='List available models (CLI + free API providers)')
     parser.add_argument('--check-providers', action='store_true',
@@ -538,49 +935,70 @@ Examples:
         runner.check_providers()
         return
 
-    if args.config:
-        results = runner.run_batch_experiments(args.config)
+    try:
+        if args.config:
+            results = runner.run_batch_experiments(args.config)
+            batch_results_file = Path("cli_batch_results.json")
+            with open(batch_results_file, 'w') as f:
+                json.dump(results, f, indent=2, default=str)
+            logger.info(f"Batch results saved to: {batch_results_file}")
 
-        batch_results_file = Path("cli_batch_results.json")
-        with open(batch_results_file, 'w') as f:
-            json.dump(results, f, indent=2, default=str)
+        elif args.full_scenario:
+            if not args.model:
+                parser.error('--full-scenario requires --model')
 
-        logger.info(f"Batch results saved to: {batch_results_file}")
+            results = runner.run_full_scenario(args.model, runs_per_setting=args.runs)
+            scenario_results_file = Path("cli_full_scenario_results.json")
+            with open(scenario_results_file, 'w') as f:
+                json.dump(results, f, indent=2, default=str)
 
-    elif args.full_scenario:
-        if not args.model:
-            parser.error('--full-scenario requires --model')
+            logger.info("Full scenario results saved to: %s", scenario_results_file)
+            print(
+                f"\nFull scenario completed successfully.\n"
+                f"Results and cross-context reports saved under: {args.results_dir}\n"
+            )
 
-        results = runner.run_full_scenario(args.model)
-        scenario_results_file = Path("cli_full_scenario_results.json")
-        with open(scenario_results_file, 'w') as f:
-            json.dump(results, f, indent=2, default=str)
+        elif args.model and args.strategy and args.context:
+            try:
+                strategies = parse_multi_values(args.strategy, ALL_STRATEGIES, STRATEGY_MAP)
+                contexts = parse_multi_values(args.context, ALL_CONTEXTS, CONTEXT_MAP)
+            except ValueError as err:
+                print(f"Error: {err}")
+                return
 
-        logger.info("Full scenario results saved to: %s", scenario_results_file)
-        print(
-            f"\nFull scenario completed: {len(results)}/6 experiments successful.\n"
-            f"Results saved to: {scenario_results_file}\n"
-        )
+            if args.runs > 1 or len(strategies) > 1 or len(contexts) > 1:
+                results = runner.run_matrix_with_statistics(
+                    model_name=args.model,
+                    strategies=strategies,
+                    contexts=contexts,
+                    runs_per_setting=args.runs,
+                )
+                print("\n" + "="*60)
+                print(f"Matrix experiment completed ({len(strategies)} strategies, {len(contexts)} contexts, {args.runs} runs each).")
+                print(f"Detailed statistics and cross-context tables saved under: {args.results_dir}")
+                print("="*60 + "\n")
+            else:
+                result = runner.run_single_experiment(
+                    args.model,
+                    strategies[0],
+                    contexts[0]
+                )
 
-    elif args.model and args.strategy and args.context:
-        result = runner.run_single_experiment(
-            args.model,
-            args.strategy,
-            args.context
-        )
+                if result:
+                    print("\n" + "="*60)
+                    print("Experiment completed successfully")
+                    print(f"Results saved to: {result['result_dir']}")
+                    print("="*60 + "\n")
+                else:
+                    print("\n" + "="*60)
+                    print("Experiment failed")
+                    print("="*60 + "\n")
 
-        if result:
-            print("\n" + "="*60)
-            print("Experiment completed successfully")
-            print(f"Results saved to: {result['result_dir']}")
-            print("="*60 + "\n")
         else:
-            print("\n" + "="*60)
-            print("Experiment failed")
-            print("="*60 + "\n")
+            parser.print_help()
 
-    else:
-        parser.print_help()
+    finally:
+        free_gpu_memory(verbose=True)
 
 
 if __name__ == "__main__":

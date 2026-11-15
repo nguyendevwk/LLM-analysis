@@ -282,17 +282,54 @@ class HuggingFaceClient(BaseCLIClient):
             self.last_response_time = time.time() - start_time
             return None
         finally:
+            try:
+                del inputs
+            except Exception:
+                pass
+            try:
+                del output_ids
+            except Exception:
+                pass
+            try:
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+            except Exception:
+                pass
+
+    def unload_model(self):
+        """Completely unload model, delete tensors, garbage collect and free VRAM."""
+        try:
+            import gc
+            import torch
+
+            if self._model_obj is not None:
+                try:
+                    self._model_obj.to("cpu")
+                except Exception:
+                    pass
+                del self._model_obj
+                self._model_obj = None
+
+            if self._tokenizer is not None:
+                del self._tokenizer
+                self._tokenizer = None
+
+            gc.collect()
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
+                if hasattr(torch.cuda, "ipc_collect"):
+                    torch.cuda.ipc_collect()
+                alloc_gb = torch.cuda.memory_allocated() / (1024 ** 3)
+                res_gb = torch.cuda.memory_reserved() / (1024 ** 3)
+                logger.info(
+                    f"Model '{self.model_id}' unloaded. VRAM freed: {alloc_gb:.2f}GB allocated, {res_gb:.2f}GB reserved."
+                )
+        except Exception as e:
+            logger.warning(f"Error while releasing VRAM: {e}")
 
     def close(self):
-        """Free GPU memory cache."""
-        try:
-            import torch
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-        except ImportError:
-            pass
+        """Free GPU memory cache and unload model."""
+        self.unload_model()
 
     def __enter__(self):
         return self
