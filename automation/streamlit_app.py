@@ -467,6 +467,7 @@ def render_config_view():
                         "Google Gemini API",
                         "InternAI / Discovery API",
                         "Local (Ollama/vLLM)",
+                        "HuggingFace Local GPU / Kaggle",
                         "Tự nhận diện (Auto-detect)"
                     ],
                     index=0
@@ -474,8 +475,8 @@ def render_config_view():
                 custom_model_input = st.text_input(
                     "Điền mã Model (Model ID / Slug)",
                     value="anthropic/claude-3.7-sonnet",
-                    placeholder="vd: anthropic/claude-3.7-sonnet, openai/gpt-4o...",
-                    help="Nhập bất kỳ mã model nào. Ví dụ OpenRouter: anthropic/claude-3.7-sonnet, openai/o3-mini, deepseek/deepseek-r1"
+                    placeholder="vd: anthropic/claude-3.7-sonnet, qwen2.5-coder:14b, Qwen/Qwen2.5-Coder-14B-Instruct...",
+                    help="Nhập bất kỳ mã model nào. Ví dụ: OpenRouter: anthropic/claude-3.7-sonnet; Local: qwen2.5-coder:14b, qwen3:4b; HF: Qwen/Qwen2.5-Coder-14B-Instruct"
                 ).strip()
 
                 if not custom_model_input:
@@ -491,6 +492,8 @@ def render_config_view():
                     selected_model = custom_model_input if custom_model_input.startswith("intern-ai:") else f"intern-ai:{custom_model_input}"
                 elif custom_provider.startswith("Local"):
                     selected_model = custom_model_input if custom_model_input.startswith("local:") else f"local:{custom_model_input}"
+                elif custom_provider.startswith("HuggingFace"):
+                    selected_model = custom_model_input if custom_model_input.startswith("hf:") else f"hf:{custom_model_input}"
                 else:
                     selected_model = custom_model_input
 

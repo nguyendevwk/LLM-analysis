@@ -173,8 +173,8 @@ class CLIExperimentRunner:
             raise ValueError(
                 f"Unknown model: {model_name}. "
                 f"Available models: {', '.join(self.cli_clients.keys())}. "
-                f"Ad-hoc syntax: openrouter:org/model:free | groq:model-id | "
-                f"gemini:model-id | local:model-id"
+                f"Ad-hoc syntax: openrouter:org/model | groq:model-id | "
+                f"gemini:model-id | local:model-id | hf:repo-id"
             )
 
         result_dir = self._get_result_dir(strategy_name, context_type, model_name)

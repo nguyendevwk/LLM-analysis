@@ -211,6 +211,39 @@ reasoning-capable model returns no visible content and is also unset by
 default. Set either variable to a positive value when a provider requires an
 explicit completion limit.
 
+### Local LLMs (Ollama, vLLM & Local Servers)
+
+Hệ thống hỗ trợ các mô hình mã nguồn mở cục bộ chạy qua Ollama, vLLM hoặc LM Studio (cổng mặc định `http://localhost:11434/v1` hoặc cấu hình qua `LOCAL_BASE_URL`):
+- **Các model cấu hình sẵn**:
+  - `local-qwen-2.5-coder-14b`: Qwen 2.5 Coder 14B (Ollama: `qwen2.5-coder:14b`)
+  - `local-qwen-2.5-coder-7b`: Qwen 2.5 Coder 7B (Ollama: `qwen2.5-coder:7b`)
+  - `local-qwen3-4b`: Qwen3 4B (Ollama: `qwen3:4b`)
+  - `local-qwen-2.5-14b`, `local-qwen-2.5-7b`, `local-qwen-2.5-3b`
+  - `local-deepseek-coder-6.7b`, `local-llama-3.1-8b`
+- **Cú pháp Ad-hoc**:
+  Chạy bất kỳ model local nào bằng tiền tố `local:`:
+  ```bash
+  cd automation
+  python cli_experiment_runner.py --model "local:qwen2.5-coder:14b" --strategy simple_prompting --context full_context
+  ```
+
+### Kaggle Dual-GPU Testing & Benchmarking ($0 API Cost)
+
+Dự án cung cấp bộ công cụ tối ưu hóa riêng cho môi trường **Kaggle Dual-GPU (2x Tesla T4 15GB)** hoàn toàn miễn phí:
+- **Kiến trúc Dual-GPU MoA**:
+  - **GPU 0 (cuda:0)**: Coder Model `Qwen/Qwen2.5-Coder-14B-Instruct` nạp 4-bit NF4 (~8.5GB VRAM).
+  - **GPU 1 (cuda:1)**: Critic Model `Qwen/Qwen3-4B-Instruct-2507` nạp 4-bit NF4 (~3.2GB VRAM).
+- **Notebook tương tác**: [`kaggle/kaggle_test_generator.ipynb`](kaggle/kaggle_test_generator.ipynb) — Có thể import trực tiếp vào Kaggle Notebook, chọn Accelerator `GPU T4 x2` và chạy "Run All".
+- **Kaggle CLI Runner**: [`kaggle/kaggle_dual_gpu_runner.py`](kaggle/kaggle_dual_gpu_runner.py):
+  ```bash
+  # Chạy Council (Coder 14B + Critic 4B) sinh test và đo Quality Gates
+  python kaggle/kaggle_dual_gpu_runner.py --mode council
+
+  # Chạy ma trận đầy đủ (2 chiến lược × 3 context)
+  python kaggle/kaggle_dual_gpu_runner.py --mode full_scenario
+  ```
+- Chi tiết xem tại [Hướng dẫn Kaggle](kaggle/README_KAGGLE.md).
+
 ### Run Single Experiment
 
 ```bash

@@ -29,14 +29,16 @@ from .base_cli_client import BaseCLIClient
 from .claude_code_client import ClaudeCodeClient
 from .gemini_cli_client import GeminiCLIClient
 from .api_client import APIClient, PROVIDERS, load_dotenv
+from .hf_client import HuggingFaceClient
 
 __all__ = [
     'BaseCLIClient',
     'ClaudeCodeClient',
     'GeminiCLIClient',
     'APIClient',
+    'HuggingFaceClient',
     'PROVIDERS',
     'load_dotenv',
 ]
 
-__version__ = '1.1.0'
+__version__ = '1.2.0'

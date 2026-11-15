@@ -36,6 +36,7 @@ GROUP_OPENROUTER_PAID = "OpenRouter (Paid)"
 GROUP_OPENROUTER = GROUP_OPENROUTER_FREE  # Backwards compatibility
 GROUP_GROQ = "Groq"
 GROUP_LOCAL = "Local OpenAI-compatible server"
+GROUP_HF = "HuggingFace Local GPU (Transformers/Kaggle)"
 GROUP_INTERNAI = "InternAI / Discovery API"
 
 
@@ -112,7 +113,21 @@ REGISTRY: Dict[str, ModelSpec] = {
     "openrouter-gemini-2.5-pro": ModelSpec("openrouter", "google/gemini-2.5-pro", GROUP_OPENROUTER_PAID, "Gemini 2.5 Pro (OpenRouter)", free=False),
 
     # --- Local servers (Ollama / LM Studio / vLLM expose /v1) ---
+    "local-qwen-2.5-coder-14b": ModelSpec("local", "qwen2.5-coder:14b", GROUP_LOCAL, "Qwen 2.5 Coder 14B (Local/Ollama)", notes="Ollama: qwen2.5-coder:14b | vLLM: Qwen/Qwen2.5-Coder-14B-Instruct"),
+    "local-qwen-2.5-coder-7b": ModelSpec("local", "qwen2.5-coder:7b", GROUP_LOCAL, "Qwen 2.5 Coder 7B (Local/Ollama)", notes="Ollama: qwen2.5-coder:7b | vLLM: Qwen/Qwen2.5-Coder-7B-Instruct"),
+    "local-qwen3-4b": ModelSpec("local", "qwen3:4b", GROUP_LOCAL, "Qwen3 4B (Local)", notes="Ollama: qwen3:4b | HF: Qwen/Qwen3-4B-Instruct-2507"),
+    "local-qwen-2.5-14b": ModelSpec("local", "qwen2.5:14b", GROUP_LOCAL, "Qwen 2.5 14B (Local)", notes="Ollama: qwen2.5:14b"),
+    "local-qwen-2.5-7b": ModelSpec("local", "qwen2.5:7b", GROUP_LOCAL, "Qwen 2.5 7B (Local)", notes="Ollama: qwen2.5:7b"),
+    "local-qwen-2.5-3b": ModelSpec("local", "qwen2.5:3b", GROUP_LOCAL, "Qwen 2.5 3B (Local)", notes="Ollama: qwen2.5:3b"),
+    "local-deepseek-coder-6.7b": ModelSpec("local", "deepseek-coder:6.7b", GROUP_LOCAL, "DeepSeek Coder 6.7B (Local)", notes="Ollama: deepseek-coder:6.7b"),
     "local-llama-3.1-8b": ModelSpec("local", "llama3.1:8b", GROUP_LOCAL, "Llama 3.1 8B (local)", notes="override LOCAL_BASE_URL if needed"),
+
+    # --- Hugging Face Local GPU (Direct in-process inference / Kaggle Dual-GPU) ---
+    "hf-qwen-2.5-coder-14b": ModelSpec("hf", "Qwen/Qwen2.5-Coder-14B-Instruct", GROUP_HF, "Qwen 2.5 Coder 14B (HF/Kaggle)", notes="4-bit NF4: ~8.5GB VRAM on Tesla T4"),
+    "hf-qwen-2.5-coder-7b": ModelSpec("hf", "Qwen/Qwen2.5-Coder-7B-Instruct", GROUP_HF, "Qwen 2.5 Coder 7B (HF/Kaggle)", notes="4-bit NF4: ~4.5GB VRAM"),
+    "hf-qwen3-4b": ModelSpec("hf", "Qwen/Qwen3-4B-Instruct-2507", GROUP_HF, "Qwen3 4B (HF/Kaggle)", notes="4-bit NF4: ~3.2GB VRAM on Tesla T4"),
+    "hf-qwen-2.5-3b": ModelSpec("hf", "Qwen/Qwen2.5-3B-Instruct", GROUP_HF, "Qwen 2.5 3B (HF/Kaggle)", notes="4-bit NF4: ~2.8GB VRAM"),
+    "hf-qwen-2.5-7b": ModelSpec("hf", "Qwen/Qwen2.5-7B-Instruct", GROUP_HF, "Qwen 2.5 7B (HF/Kaggle)", notes="4-bit NF4: ~4.5GB VRAM"),
 
     # --- InternAI / Discovery API (OpenAI-compatible) ---
     "intern-ai-glm-5-3": ModelSpec("intern-ai", "glm-5.3", GROUP_INTERNAI, "GLM 5.3"),
@@ -138,13 +153,14 @@ REGISTRY: Dict[str, ModelSpec] = {
 
 
 # Providers usable with ad-hoc "provider:model-id" syntax
-PROVIDER_SYNTAX: Tuple[str, ...] = ("openrouter", "groq", "gemini", "local", "intern-ai")
+PROVIDER_SYNTAX: Tuple[str, ...] = ("openrouter", "groq", "gemini", "local", "intern-ai", "hf")
 
 PROVIDER_GROUPS = {
     "openrouter": GROUP_OPENROUTER_PAID,
     "groq": GROUP_GROQ,
     "gemini": GROUP_GEMINI,
     "local": GROUP_LOCAL,
+    "hf": GROUP_HF,
     "intern-ai": GROUP_INTERNAI,
 }
 
@@ -217,26 +233,40 @@ def build_client_factories(**kwargs) -> Dict[str, Callable]:
     """
     Build {registered name: client factory} for all registry models.
 
-    Factories are lazy: the API client (and its key check) is only created
+    Factories are lazy: the API client or HuggingFace client is only created
     when an experiment actually runs. Any kwargs (e.g. temperature, max_tokens,
-    api_key) are forwarded to APIClient.
+    api_key) are forwarded to the appropriate client.
     """
-    from cli_automation import APIClient
-
     factories: Dict[str, Callable] = {}
     for name, spec in REGISTRY.items():
-        factories[name] = (
-            lambda provider=spec.provider, model=spec.model_id, kw=kwargs:
-                APIClient(provider=provider, model=model, **kw)
-        )
+        if spec.provider == "hf":
+            factories[name] = (
+                lambda model=spec.model_id, kw=kwargs:
+                    _create_hf_client(model, **kw)
+            )
+        else:
+            factories[name] = (
+                lambda provider=spec.provider, model=spec.model_id, kw=kwargs:
+                    _create_api_client(provider, model, **kw)
+            )
     return factories
+
+
+def _create_api_client(provider: str, model: str, **kwargs):
+    from cli_automation import APIClient
+    return APIClient(provider=provider, model=model, **kwargs)
+
+
+def _create_hf_client(model: str, **kwargs):
+    from cli_automation import HuggingFaceClient
+    return HuggingFaceClient(model=model, **kwargs)
 
 
 def make_client_factory(spec: ModelSpec, **kwargs) -> Callable:
     """Build a factory for an arbitrary (e.g. ad-hoc) model spec."""
-    from cli_automation import APIClient
-
-    return lambda: APIClient(provider=spec.provider, model=spec.model_id, **kwargs)
+    if spec.provider == "hf":
+        return lambda: _create_hf_client(spec.model_id, **kwargs)
+    return lambda: _create_api_client(spec.provider, spec.model_id, **kwargs)
 
 
 def list_model_names() -> List[str]:
