@@ -63,28 +63,39 @@ Below is the {context_level} of the class:
 ```'''
 
 
-METAMORPHIC_PROMPTING_TEMPLATE = '''Generate a comprehensive Python unit test suite for the class `{class_name}` using the principles of Metamorphic Testing (MT) and Property-Based Verification.
+METAMORPHIC_PROMPTING_TEMPLATE = '''Generate a comprehensive, production-grade Python unit test suite for the class `{class_name}` using the principles of Metamorphic Testing (MT) and Property-Based Verification.
 
 Instructions:
 - Use the `unittest` framework.
-- In addition to standard functional checks, you MUST explicitly formulate and test the core **Metamorphic Relations (MRs)** and state invariants of `{class_name}`:
-  1. Monotonicity / Directionality Relations (MR-Monotone):
-     Verify that incremental inputs produce strictly directional outputs (e.g., adding positive items increases subtotal, higher discount decreases total).
-  2. Invariance & Idempotence Relations (MR-Idempotent):
-     Verify operations that should preserve state or produce identical results when repeated (e.g., calling reset/clear twice, read-only getters leaving internal state unchanged).
-  3. Reversibility / Inverse Operations (MR-Inverse):
-     Verify that applying an operation and then its inverse (e.g., adding an item then removing it) restores the prior system state.
-  4. Commutativity & Permutation Invariance (MR-Commutative):
-     Verify that the order of independent operations does not affect the final aggregate outcome.
-  5. Boundary & Threshold Discontinuity Relations (MR-Threshold):
-     Verify exact behavior at and around critical thresholds (e.g., threshold - 0.01, exact threshold, threshold + 0.01).
-  6. Strict Exception Verification:
-     When verifying exceptions, check BOTH the exception type AND the specific error message:
-     `with self.assertRaises(ExpectedException) as ctx:`
-     `    ...`
-     `self.assertIn("expected phrase", str(ctx.exception))`
+- Return a single valid Python file with a class extending `unittest.TestCase`.
 
-- Ensure tests are atomic, clean, and use strong assertions (avoid `assert True`).
+Requirement 1: Full Method Coverage (MANDATORY)
+- You MUST test ALL public methods of `{class_name}` individually. Do not skip or omit any method!
+- Target 100% method and branch coverage (normal cases, boundary conditions, invalid inputs, exceptions).
+
+Requirement 2: Metamorphic Relations (MRs) & Invariants
+In addition to individual method coverage, explicitly include tests for the following behavioral relations:
+1. Monotonicity / Directionality (MR-Monotone):
+   e.g., adding positive items strictly increases subtotal; higher discount rate strictly decreases final total.
+2. Invariance & Idempotence (MR-Idempotent):
+   e.g., calling reset/clear twice produces the exact same empty state as calling once; getter methods must not modify internal state.
+3. Reversibility / Inverse Operations (MR-Inverse):
+   e.g., adding an item and then removing it restores the prior item count and state.
+4. Commutativity & Permutation (MR-Commutative):
+   e.g., the order of adding distinct independent items produces identical subtotal and tax.
+5. Boundary & Threshold Discontinuity (MR-Threshold):
+   Test exact values right around thresholds (e.g., threshold - 0.01, exact threshold, threshold + 0.01).
+
+Requirement 3: Robust Assertion & Exception Standards
+- Strict Exception Checking: Always verify BOTH the exception type and error message:
+  `with self.assertRaises(ExpectedException) as ctx:`
+  `    ...`
+  `self.assertIn("expected message phrase", str(ctx.exception))`
+- Unordered Collections: When comparing lists of unique names, compare as sets:
+  `self.assertEqual(set(calc.list_items()), {"item1", "item2"})`
+- Empty vs Non-Empty State: Note pre-conditions (e.g., methods calculating subtotal/total require items in order, otherwise raising ValueError).
+- Ensure all tests are atomic, clean, and use strong assertions (avoid `assert True`).
+
 - Output ONLY valid executable Python code enclosed in ```python ... ```.
 - IMPORTANT: Do NOT redefine or copy the `{class_name}` class. Simply import it using:
   `{import_statement}`
