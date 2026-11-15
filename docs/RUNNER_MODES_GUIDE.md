@@ -108,6 +108,34 @@ python automation/cli_experiment_runner.py \
 
 ---
 
+### Cơ Chế Tự Động Nén An Toàn (Anti-Virus Safe Archiving) ⭐ MỚI
+Khi chạy thực nghiệm trên Kaggle hoặc máy chủ từ xa, người dùng thường gặp tình trạng **Kaggle hoặc trình duyệt (Chrome, Edge, Windows Defender) chặn tải file vì nghi ngờ có virus / tệp nguy hiểm**.
+
+#### Nguyên nhân gây báo động giả (False-Positive):
+1. **Thư mục đột biến `mutants/`:** Thư viện `mutmut` tạo ra hàng trăm file mã nguồn bị biến đổi cú pháp, cắt bỏ dòng lệnh bất thường và cơ sở dữ liệu nhị phân `.mutmut-cache`. Các công cụ quét virus heuristic thường hiểu nhầm các đoạn mã dị dạng này là mã độc obfuscated/corrupted script!
+2. **Bytecode `__pycache__` & `.pyc`:** Các tệp nhị phân đã biên dịch dễ trùng chữ ký mã độc.
+3. **Mã test chứa chuỗi giả lập lỗi:** LLM sinh ra các bài test kiểm tra biên (boundary test) có chứa chuỗi giả lập payload lỗi, `os.system` hay `subprocess` mock.
+
+#### Giải pháp tự động lọc và đóng gói an toàn:
+Hệ thống **tự động nén toàn bộ kết quả** ngay khi thực nghiệm kết thúc:
+* **Bộ lọc thông minh (Smart Filter):** Tự động loại bỏ hoàn toàn `mutants/`, `.mutmut-cache`, `__pycache__`, `.pytest_cache`, `.coverage`.
+* **Giữ nguyên 100% dữ liệu nghiên cứu:** Giữ trọn vẹn toàn bộ mã test sinh ra (`test_*.py`), tất cả báo cáo JSON, CSV, Markdown, log tóm tắt (`statistical_summary.*`, `cross_context_summary.*`, `analysis_results.json`, `mutmut_results.txt`...).
+* **Hỗ trợ định dạng kép `.tar.gz`:** Trình duyệt và Windows Defender thường chỉ quét sâu vào file `.zip`. Định dạng `.tar.gz` giúp bạn tải về thông suốt mà không bao giờ bị chặn.
+* **Hỗ trợ mật khẩu mã hóa (`--zip-password`):** Mã hóa file nén khiến phần mềm bảo mật không thể quét nhầm nội dung bên trong.
+* **Tự tạo Link tải trực tiếp trong Kaggle Notebook:** Tự động tạo link HTML qua `IPython.display.FileLink`, click là tải ngay không cần qua thanh công cụ của Kaggle!
+
+#### Các tham số nén:
+* Mặc định: Hệ thống **tự động nén** file `.zip` an toàn ở cuối mỗi lượt chạy (lưu tại thư mục làm việc, vd: `/kaggle/working/results_hf-qwen-2.5-coder-7b_20261115_185000.zip`).
+* `--no-zip`: Tắt tính năng tự nén nếu không cần thiết.
+* `--zip-format {zip, tar.gz, both}`: Định dạng nén (mặc định: `zip`). Chọn `both` để sinh cả `.zip` và `.tar.gz`.
+* `--zip-password <mat_khau>`: Mã hóa file zip bằng mật khẩu.
+* `--archive-only`: Nén nhanh thư mục kết quả đã chạy trước đó mà không cần chạy lại thực nghiệm:
+  ```bash
+  python automation/cli_experiment_runner.py --archive-only --results-dir cli_results_v1
+  ```
+
+---
+
 ### Mode 2: Full Scenario (Chạy toàn bộ ma trận)
 Tự động chạy toàn bộ **9 bài toán** (3 chiến lược × 3 mức ngữ cảnh) cho 1 mô hình để tạo ra bảng số liệu hoàn chỉnh cho nghiên cứu.
 
@@ -220,6 +248,10 @@ python automation/cli_experiment_runner.py \
 | `--class-name` | Chuỗi | `None` | Tên lớp trong file mã nguồn của Universal mode |
 | `--list-models` | Cờ bool | `False` | Hiển thị danh mục model hỗ trợ |
 | `--check-providers`| Cờ bool | `False` | Kiểm tra kết nối mạng và API keys |
+| `--no-zip` | Cờ bool | `False` | **Mới:** Tắt tính năng tự động nén kết quả an toàn |
+| `--zip-format` | Lựa chọn | `zip` | **Mới:** Định dạng nén: `zip`, `tar.gz` (chống AV quét), hoặc `both` |
+| `--zip-password` | Chuỗi | `None` | **Mới:** Đặt mật khẩu mã hóa cho file zip để bảo mật |
+| `--archive-only` | Cờ bool | `False` | **Mới:** Đóng gói ngay thư mục kết quả có sẵn mà không cần chạy lại test |
 
 ---
 
@@ -349,4 +381,30 @@ cat cli_results_v1/metamorphic_prompting/full_context/hf-qwen-2.5-coder-7b/stati
 
 # Xem bảng so sánh chéo các mức ngữ cảnh:
 cat cli_results_v1/metamorphic_prompting/hf-qwen-2.5-coder-7b/cross_context_summary.md
+```
+
+### Đóng Gói An Toàn & Tải Kết Quả Về Máy Tính (Chống Bị Chặn Virus):
+Sau khi chạy xong, file nén an toàn `results_*.zip` đã được tự động tạo ngay tại `/kaggle/working/`. Bạn có thể tải về bằng một trong hai cách:
+
+**Cách 1: Hiện link tải HTML trực tiếp trong ô code Kaggle:**
+```python
+from IPython.display import FileLink
+import glob
+
+# Tự động tìm file zip kết quả mới nhất và tạo link click-to-download
+archives = sorted(glob.glob("results_*.zip"))
+if archives:
+    display(FileLink(archives[-1]))
+```
+
+**Cách 2: Nén lại kết quả hiện có bằng lệnh tay (hoặc nén dạng .tar.gz / đặt mật khẩu):**
+```bash
+# Nén an toàn thư mục kết quả hiện tại thành file zip sạch (đã lọc các file rác):
+python automation/cli_experiment_runner.py --archive-only --results-dir cli_results_v1
+
+# Nén sang định dạng .tar.gz (Chrome và Windows Defender không quét sâu):
+python automation/cli_experiment_runner.py --archive-only --results-dir cli_results_v1 --zip-format tar.gz
+
+# Nén có mật khẩu bảo vệ để vượt qua tường lửa kiểm duyệt:
+python automation/cli_experiment_runner.py --archive-only --results-dir cli_results_v1 --zip-password mypass123
 ```

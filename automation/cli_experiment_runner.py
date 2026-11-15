@@ -42,6 +42,7 @@ import model_registry
 
 from experiment_runner import ExperimentRunner
 from prompt_strategies import SimplePrompting, ChainOfThoughtPrompting, MetamorphicPrompting
+from archive_utils import create_safe_results_archive
 
 logger = logging.getLogger(__name__)
 
@@ -831,6 +832,16 @@ Examples:
 
   # Legacy single run
   python cli_experiment_runner.py --model claude-code-sonnet-4.5 --strategy simple_prompting --context interface
+  # Packaging & Archiving:
+  # Results are automatically zipped into a clean archive (excluding AV false-positive patterns).
+  # Package existing results without re-running:
+  python cli_experiment_runner.py --archive-only --results-dir cli_results_v1
+
+  # Create both .zip and .tar.gz archives:
+  python cli_experiment_runner.py --model hf-qwen-2.5-coder-7b --strategy metamorphic_prompting --context full_context --zip-format both
+
+  # Password-protect zip archive:
+  python cli_experiment_runner.py --model hf-qwen-2.5-coder-7b --strategy metamorphic_prompting --context full_context --zip-password mypass
         ''',
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -859,6 +870,18 @@ Examples:
                         help='Max completion tokens (default: provider default)')
     parser.add_argument('--api-key', type=str, default=None,
                         help='Override API key for this run (bypasses .env key)')
+
+    # Archive and Compression options
+    parser.add_argument('--no-zip', action='store_true',
+                        help='Disable automatic packaging of results into a safe archive')
+    parser.add_argument('--zip-format', choices=['zip', 'tar.gz', 'both'], default='zip',
+                        help='Archive format: "zip" (default), "tar.gz" (avoids AV heuristics), or "both"')
+    parser.add_argument('--zip-password', type=str, default=None,
+                        help='Optional password encryption for the zip archive')
+    parser.add_argument('--zip-output', type=str, default=None,
+                        help='Explicit file path for the output archive')
+    parser.add_argument('--archive-only', action='store_true',
+                        help='Package existing results directory into safe archive without running new experiments')
 
     # Universal mode arguments
     parser.add_argument('--source-file', type=str, default=None,
@@ -935,8 +958,21 @@ Examples:
         runner.check_providers()
         return
 
+    if args.archive_only:
+        create_safe_results_archive(
+            source_dir=Path(args.results_dir),
+            output_path=Path(args.zip_output) if args.zip_output else None,
+            output_prefix=f"results_{args.model or 'suite'}",
+            archive_format=args.zip_format,
+            password=args.zip_password,
+            verbose=True,
+        )
+        return
+
+    experiment_executed = False
     try:
         if args.config:
+            experiment_executed = True
             results = runner.run_batch_experiments(args.config)
             batch_results_file = Path("cli_batch_results.json")
             with open(batch_results_file, 'w') as f:
@@ -947,6 +983,7 @@ Examples:
             if not args.model:
                 parser.error('--full-scenario requires --model')
 
+            experiment_executed = True
             results = runner.run_full_scenario(args.model, runs_per_setting=args.runs)
             scenario_results_file = Path("cli_full_scenario_results.json")
             with open(scenario_results_file, 'w') as f:
@@ -966,6 +1003,7 @@ Examples:
                 print(f"Error: {err}")
                 return
 
+            experiment_executed = True
             if args.runs > 1 or len(strategies) > 1 or len(contexts) > 1:
                 results = runner.run_matrix_with_statistics(
                     model_name=args.model,
@@ -996,6 +1034,17 @@ Examples:
 
         else:
             parser.print_help()
+
+        # Automatically package results into a clean archive (filtered against AV false-positives)
+        if experiment_executed and not args.no_zip:
+            create_safe_results_archive(
+                source_dir=Path(args.results_dir),
+                output_path=Path(args.zip_output) if args.zip_output else None,
+                output_prefix=f"results_{args.model or 'suite'}",
+                archive_format=args.zip_format,
+                password=args.zip_password,
+                verbose=True,
+            )
 
     finally:
         free_gpu_memory(verbose=True)
