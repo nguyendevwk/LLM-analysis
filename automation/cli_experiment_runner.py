@@ -310,9 +310,9 @@ class CLIExperimentRunner:
             for model in models:
                 print(f"  - {model}")
 
-        print("\nAd-hoc syntax (any model a provider offers):")
-        print("  - openrouter:org/model:free")
-        print("  - groq:model-id | gemini:model-id | local:model-id")
+        print("\nAd-hoc syntax (any model a provider offers, free or paid):")
+        print("  - openrouter:vendor/model (e.g. openrouter:anthropic/claude-3.7-sonnet)")
+        print("  - groq:model-id | gemini:model-id | local:model-id | intern-ai:model-id")
         print("\n" + "="*60)
 
     def check_providers(self) -> bool:

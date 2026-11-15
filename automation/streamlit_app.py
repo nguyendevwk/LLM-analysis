@@ -273,6 +273,11 @@ def get_model_display_name(model_id: str) -> str:
     for provider_models in models.values():
         if model_id in provider_models:
             return provider_models[model_id]
+    resolved = model_registry.resolve_model(model_id)
+    if resolved:
+        return resolved[0].label
+    if model_id.startswith("openrouter:"):
+        return f"OpenRouter: {model_id.replace('openrouter:', '')}"
     return model_id
 
 
@@ -299,9 +304,14 @@ def get_context_preview(file_path: Path, context_level: str, class_name: str = N
 def parse_experiment_results(results_dir: str, strategy: str, context: str, model: str) -> dict:
     """Parse experiment results from most recent run."""
     try:
-        base_path = Path(results_dir) / strategy / context / model
+        resolved = model_registry.resolve_model(model)
+        canonical_model = resolved[1] if resolved else model
+        base_path = Path(results_dir) / strategy / context / canonical_model
         if not base_path.exists():
-            return None
+            # Fallback to literal model name if canonical path does not exist
+            base_path = Path(results_dir) / strategy / context / model
+            if not base_path.exists():
+                return None
 
         runs = sorted(
             [d for d in base_path.iterdir() if d.is_dir() and d.name.startswith("run_")],
@@ -428,9 +438,23 @@ def render_config_view():
 
         with col1:
             models = get_available_models()
+            for group_key in ("OpenRouter (Paid)", "OpenRouter (Free)"):
+                if group_key in models:
+                    models[group_key]["custom_openrouter"] = "✨ Enter custom model ID..."
+
             provider = st.selectbox("Provider", list(models.keys()))
             model_opts = models[provider]
             selected_model = st.selectbox("Model", list(model_opts.keys()), format_func=lambda x: model_opts[x])
+            if selected_model == "custom_openrouter":
+                custom_id = st.text_input(
+                    "Custom OpenRouter Model ID",
+                    placeholder="e.g. anthropic/claude-3.7-sonnet",
+                    help="Enter any provider/model ID from https://openrouter.ai/models"
+                )
+                if custom_id.strip():
+                    selected_model = f"openrouter:{custom_id.strip()}"
+                else:
+                    selected_model = "openrouter:anthropic/claude-3.7-sonnet"
 
         with col2:
             strategy = st.selectbox(

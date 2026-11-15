@@ -31,7 +31,9 @@ from dataclasses import dataclass
 from typing import Callable, Dict, List, Optional, Tuple
 
 GROUP_GEMINI = "Gemini API"
-GROUP_OPENROUTER = "OpenRouter"
+GROUP_OPENROUTER_FREE = "OpenRouter (Free)"
+GROUP_OPENROUTER_PAID = "OpenRouter (Paid)"
+GROUP_OPENROUTER = GROUP_OPENROUTER_FREE  # Backwards compatibility
 GROUP_GROQ = "Groq"
 GROUP_LOCAL = "Local OpenAI-compatible server"
 GROUP_INTERNAI = "InternAI / Discovery API"
@@ -64,18 +66,50 @@ REGISTRY: Dict[str, ModelSpec] = {
     "groq-qwen3.8-27b": ModelSpec("groq", "qwen/qwen3.8-27b", GROUP_GROQ, "Qwen3.8 27B"),
 
     # --- OpenRouter (completely free ':free' models) ---
-    "openrouter-gemma-4-31b-it": ModelSpec("openrouter", "google/gemma-4-31b-it:free", GROUP_OPENROUTER, "Gemma 4 31B IT"),
-    "openrouter-gemma-4-26b-a4b-it": ModelSpec("openrouter", "google/gemma-4-26b-a4b-it:free", GROUP_OPENROUTER, "Gemma 4 26B A4B IT"),
-    "openrouter-nemotron-3-super-120b-a12b": ModelSpec("openrouter", "nvidia/nemotron-3-super-120b-a12b:free", GROUP_OPENROUTER, "Nemotron 3 Super 120B"),
-    "openrouter-nemotron-3.5-lightning": ModelSpec("openrouter", "nvidia/nemotron-3.5-lightning:free", GROUP_OPENROUTER, "Nemotron 3.5 Lightning"),
-    "openrouter-nemotron-3-ultra-550b-a55b": ModelSpec("openrouter", "nvidia/nemotron-3-ultra-550b-a55b:free", GROUP_OPENROUTER, "Nemotron 3 Ultra 550B"),
-    "openrouter-inkling": ModelSpec("openrouter", "thinkingmachines/inkling:free", GROUP_OPENROUTER, "Inkling"),
-    "openrouter-inkling-small": ModelSpec("openrouter", "thinkingmachines/inkling-small:free", GROUP_OPENROUTER, "Inkling Small"),
-    "openrouter-laguna-s-2.1": ModelSpec("openrouter", "poolside/laguna-s-2.1:free", GROUP_OPENROUTER, "Poolside Laguna S 2.1"),
-    "openrouter-laguna-xs-2.1": ModelSpec("openrouter", "poolside/laguna-xs-2.1:free", GROUP_OPENROUTER, "Poolside Laguna XS 2.1"),
-    "openrouter-north-mini-code": ModelSpec("openrouter", "cohere/north-mini-code:free", GROUP_OPENROUTER, "Cohere North Mini Code"),
-    "openrouter-dots-3-note-preview": ModelSpec("openrouter", "dots-studio/dots-3-note-preview:free", GROUP_OPENROUTER, "DOTS.3 Note Preview"),
-    "openrouter-lfm-2.5-2.6b": ModelSpec("openrouter", "liquid/lfm-2.5-2.6b:free", GROUP_OPENROUTER, "LFM 2.5 2.6B"),
+    "openrouter-gemma-4-31b-it": ModelSpec("openrouter", "google/gemma-4-31b-it:free", GROUP_OPENROUTER_FREE, "Gemma 4 31B IT"),
+    "openrouter-gemma-4-26b-a4b-it": ModelSpec("openrouter", "google/gemma-4-26b-a4b-it:free", GROUP_OPENROUTER_FREE, "Gemma 4 26B A4B IT"),
+    "openrouter-nemotron-3-super-120b-a12b": ModelSpec("openrouter", "nvidia/nemotron-3-super-120b-a12b:free", GROUP_OPENROUTER_FREE, "Nemotron 3 Super 120B"),
+    "openrouter-nemotron-3.5-lightning": ModelSpec("openrouter", "nvidia/nemotron-3.5-lightning:free", GROUP_OPENROUTER_FREE, "Nemotron 3.5 Lightning"),
+    "openrouter-nemotron-3-ultra-550b-a55b": ModelSpec("openrouter", "nvidia/nemotron-3-ultra-550b-a55b:free", GROUP_OPENROUTER_FREE, "Nemotron 3 Ultra 550B"),
+    "openrouter-inkling": ModelSpec("openrouter", "thinkingmachines/inkling:free", GROUP_OPENROUTER_FREE, "Inkling"),
+    "openrouter-inkling-small": ModelSpec("openrouter", "thinkingmachines/inkling-small:free", GROUP_OPENROUTER_FREE, "Inkling Small"),
+    "openrouter-laguna-s-2.1": ModelSpec("openrouter", "poolside/laguna-s-2.1:free", GROUP_OPENROUTER_FREE, "Poolside Laguna S 2.1"),
+    "openrouter-laguna-xs-2.1": ModelSpec("openrouter", "poolside/laguna-xs-2.1:free", GROUP_OPENROUTER_FREE, "Poolside Laguna XS 2.1"),
+    "openrouter-north-mini-code": ModelSpec("openrouter", "cohere/north-mini-code:free", GROUP_OPENROUTER_FREE, "Cohere North Mini Code"),
+    "openrouter-dots-3-note-preview": ModelSpec("openrouter", "dots-studio/dots-3-note-preview:free", GROUP_OPENROUTER_FREE, "DOTS.3 Note Preview"),
+    "openrouter-lfm-2.5-2.6b": ModelSpec("openrouter", "liquid/lfm-2.5-2.6b:free", GROUP_OPENROUTER_FREE, "LFM 2.5 2.6B"),
+
+    # --- OpenRouter (Commercial / Paid Models) ---
+    # Anthropic
+    "openrouter-claude-3.7-sonnet": ModelSpec("openrouter", "anthropic/claude-3.7-sonnet", GROUP_OPENROUTER_PAID, "Claude 3.7 Sonnet", free=False),
+    "openrouter-claude-3.7-sonnet-thinking": ModelSpec("openrouter", "anthropic/claude-3.7-sonnet:thinking", GROUP_OPENROUTER_PAID, "Claude 3.7 Sonnet (Thinking)", free=False),
+    "openrouter-claude-3.5-sonnet": ModelSpec("openrouter", "anthropic/claude-3.5-sonnet", GROUP_OPENROUTER_PAID, "Claude 3.5 Sonnet", free=False),
+    "openrouter-claude-3.5-haiku": ModelSpec("openrouter", "anthropic/claude-3.5-haiku", GROUP_OPENROUTER_PAID, "Claude 3.5 Haiku", free=False),
+    "openrouter-claude-3-opus": ModelSpec("openrouter", "anthropic/claude-3-opus", GROUP_OPENROUTER_PAID, "Claude 3 Opus", free=False),
+
+    # OpenAI
+    "openrouter-gpt-4o": ModelSpec("openrouter", "openai/gpt-4o", GROUP_OPENROUTER_PAID, "GPT-4o", free=False),
+    "openrouter-gpt-4o-mini": ModelSpec("openrouter", "openai/gpt-4o-mini", GROUP_OPENROUTER_PAID, "GPT-4o mini", free=False),
+    "openrouter-gpt-4.5-preview": ModelSpec("openrouter", "openai/gpt-4.5-preview", GROUP_OPENROUTER_PAID, "GPT-4.5 Preview", free=False),
+    "openrouter-o3-mini": ModelSpec("openrouter", "openai/o3-mini", GROUP_OPENROUTER_PAID, "o3-mini", free=False),
+    "openrouter-o1": ModelSpec("openrouter", "openai/o1", GROUP_OPENROUTER_PAID, "o1", free=False),
+    "openrouter-o1-mini": ModelSpec("openrouter", "openai/o1-mini", GROUP_OPENROUTER_PAID, "o1-mini", free=False),
+
+    # DeepSeek
+    "openrouter-deepseek-v3": ModelSpec("openrouter", "deepseek/deepseek-chat", GROUP_OPENROUTER_PAID, "DeepSeek V3", free=False),
+    "openrouter-deepseek-r1": ModelSpec("openrouter", "deepseek/deepseek-r1", GROUP_OPENROUTER_PAID, "DeepSeek R1", free=False),
+
+    # Coding & Open-Weight Frontier
+    "openrouter-qwen-2.5-coder-32b-instruct": ModelSpec("openrouter", "qwen/qwen-2.5-coder-32b-instruct", GROUP_OPENROUTER_PAID, "Qwen 2.5 Coder 32B", free=False),
+    "openrouter-qwen-2.5-72b-instruct": ModelSpec("openrouter", "qwen/qwen-2.5-72b-instruct", GROUP_OPENROUTER_PAID, "Qwen 2.5 72B Instruct", free=False),
+    "openrouter-codestral": ModelSpec("openrouter", "mistralai/codestral-2501", GROUP_OPENROUTER_PAID, "Codestral 2501", free=False),
+    "openrouter-mistral-large": ModelSpec("openrouter", "mistralai/mistral-large-2411", GROUP_OPENROUTER_PAID, "Mistral Large 2411", free=False),
+    "openrouter-llama-3.3-70b-instruct": ModelSpec("openrouter", "meta-llama/llama-3.3-70b-instruct", GROUP_OPENROUTER_PAID, "Llama 3.3 70B Instruct", free=False),
+    "openrouter-llama-3.1-405b-instruct": ModelSpec("openrouter", "meta-llama/llama-3.1-405b-instruct", GROUP_OPENROUTER_PAID, "Llama 3.1 405B Instruct", free=False),
+
+    # Google Gemini via OpenRouter
+    "openrouter-gemini-2.0-flash": ModelSpec("openrouter", "google/gemini-2.0-flash-001", GROUP_OPENROUTER_PAID, "Gemini 2.0 Flash (OpenRouter)", free=False),
+    "openrouter-gemini-2.5-pro": ModelSpec("openrouter", "google/gemini-2.5-pro", GROUP_OPENROUTER_PAID, "Gemini 2.5 Pro (OpenRouter)", free=False),
 
     # --- Local servers (Ollama / LM Studio / vLLM expose /v1) ---
     "local-llama-3.1-8b": ModelSpec("local", "llama3.1:8b", GROUP_LOCAL, "Llama 3.1 8B (local)", notes="override LOCAL_BASE_URL if needed"),
@@ -107,7 +141,7 @@ REGISTRY: Dict[str, ModelSpec] = {
 PROVIDER_SYNTAX: Tuple[str, ...] = ("openrouter", "groq", "gemini", "local", "intern-ai")
 
 PROVIDER_GROUPS = {
-    "openrouter": GROUP_OPENROUTER,
+    "openrouter": GROUP_OPENROUTER_PAID,
     "groq": GROUP_GROQ,
     "gemini": GROUP_GEMINI,
     "local": GROUP_LOCAL,
@@ -130,29 +164,51 @@ def resolve_model(name: str) -> Optional[Tuple[ModelSpec, str]]:
     """
     Resolve a model name to (spec, canonical directory name).
 
-    Accepts registered names ('groq-gpt-oss-120b') and ad-hoc provider
-    syntax ('openrouter:org/model:free'). Returns None when the name is
-    neither — callers then fall back to legacy CLI models and raise a
-    helpful error.
+    Accepts registered names ('groq-gpt-oss-120b', 'openrouter-claude-3.7-sonnet'),
+    ad-hoc provider syntax ('openrouter:anthropic/claude-3.7-sonnet',
+    'openrouter/openai/gpt-4o'), and direct vendor/model paths
+    ('anthropic/claude-3.7-sonnet', 'openai/gpt-4o').
+    Returns None when the name is neither — callers then fall back to legacy CLI
+    models and raise a helpful error.
     """
     if name in REGISTRY:
         return REGISTRY[name], name
 
     for provider in PROVIDER_SYNTAX:
-        prefix = f"{provider}:"
-        if name.startswith(prefix):
-            model_id = name[len(prefix):].strip()
-            if not model_id:
-                return None
-            spec = ModelSpec(
-                provider=provider,
-                model_id=model_id,
-                group=PROVIDER_GROUPS[provider],
-                label=model_id,
-                free=provider != "local",
-                notes="ad-hoc (not in registry)",
-            )
-            return spec, canonical_name(provider, model_id)
+        for sep in (":", "/"):
+            prefix = f"{provider}{sep}"
+            if name.startswith(prefix):
+                model_id = name[len(prefix):].strip()
+                if not model_id:
+                    return None
+                is_free = ":free" in model_id.lower() or provider == "local"
+                if provider == "openrouter":
+                    group = GROUP_OPENROUTER_FREE if is_free else GROUP_OPENROUTER_PAID
+                else:
+                    group = PROVIDER_GROUPS.get(provider, provider)
+                spec = ModelSpec(
+                    provider=provider,
+                    model_id=model_id,
+                    group=group,
+                    label=model_id,
+                    free=is_free,
+                    notes="ad-hoc (not in registry)",
+                )
+                return spec, canonical_name(provider, model_id)
+
+    # If the user passed a vendor/model identifier directly, default to OpenRouter
+    if "/" in name and not name.startswith(("./", "../", "/")):
+        model_id = name.strip()
+        is_free = ":free" in model_id.lower()
+        spec = ModelSpec(
+            provider="openrouter",
+            model_id=model_id,
+            group=GROUP_OPENROUTER_FREE if is_free else GROUP_OPENROUTER_PAID,
+            label=model_id,
+            free=is_free,
+            notes="ad-hoc OpenRouter model",
+        )
+        return spec, canonical_name("openrouter", model_id)
 
     return None
 

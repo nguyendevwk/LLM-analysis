@@ -65,7 +65,10 @@ PROVIDERS: Dict[str, Dict] = {
         "label": "OpenRouter",
         "base_url": "https://openrouter.ai/api/v1",
         "key_env": "OPENROUTER_API_KEY",
-        "extra_headers": {"X-Title": "LLM Test Generation Analysis"},
+        "extra_headers": {
+            "X-Title": "LLM Test Generation Analysis",
+            "HTTP-Referer": "https://github.com/nguyendevwk/LLM-analysis",
+        },
         "key_required": True,
     },
     "groq": {
@@ -516,6 +519,27 @@ class APIClient(BaseCLIClient):
                     )
                     drop_temperature = True
                     continue
+
+                elif (
+                    response.status_code == 400
+                    and "max_tokens" in body
+                    and any(term in response.text.lower() for term in ("max_tokens", "max_completion_tokens"))
+                ):
+                    logger.info(
+                        "Provider rejected 'max_tokens' — retrying with 'max_completion_tokens'"
+                    )
+                    payload["max_completion_tokens"] = payload.pop("max_tokens")
+                    continue
+
+                elif response.status_code == 402:
+                    if self._rotate_api_key() and attempt < self.max_retries - 1:
+                        continue
+                    raise RuntimeError(
+                        f"{self.provider_config['label']} returned 402 Payment Required "
+                        f"(insufficient credits): {response.text[:300]}. "
+                        "Please check your OpenRouter credit balance at https://openrouter.ai/credits "
+                        f"or verify {self.key_env}."
+                    )
 
                 elif response.status_code in (401, 403):
                     if self._rotate_api_key() and attempt < self.max_retries - 1:

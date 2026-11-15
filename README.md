@@ -175,7 +175,27 @@ tools required. Only a key in `.env` is needed:
 
    The six experiment results are saved to `cli_full_scenario_results.json`.
 
-Curated free models live in `automation/model_registry.py` (add one line to
+### OpenRouter Models (Free & Paid/Commercial)
+
+Both free and commercial paid models on OpenRouter are fully supported using `OPENROUTER_API_KEY` in `.env`:
+- **Curated Paid / Commercial Models**:
+  - **Anthropic**: `openrouter-claude-3.7-sonnet`, `openrouter-claude-3.7-sonnet-thinking`, `openrouter-claude-3.5-sonnet`, `openrouter-claude-3.5-haiku`, `openrouter-claude-3-opus`
+  - **OpenAI**: `openrouter-gpt-4o`, `openrouter-gpt-4o-mini`, `openrouter-gpt-4.5-preview`, `openrouter-o3-mini`, `openrouter-o1`
+  - **DeepSeek**: `openrouter-deepseek-v3`, `openrouter-deepseek-r1`
+  - **Coding & Open Weights**: `openrouter-qwen-2.5-coder-32b-instruct`, `openrouter-codestral`, `openrouter-llama-3.3-70b-instruct`, `openrouter-gemini-2.0-flash`
+- **Ad-hoc Syntax (Any Model)**:
+  Run any model hosted on OpenRouter using `openrouter:vendor/model-name` or direct `vendor/model-name`:
+  ```bash
+  cd automation
+  # Single run with Claude 3.7 Sonnet
+  uv run python cli_experiment_runner.py --model openrouter:anthropic/claude-3.7-sonnet --strategy simple_prompting --context full_context
+
+  # Full 6-scenario batch with GPT-4o
+  uv run python cli_experiment_runner.py --model openrouter:openai/gpt-4o --full-scenario
+  ```
+- **Streamlit Web UI**: Select **OpenRouter (Paid)** or **OpenRouter (Free)** in the Provider dropdown. You can also pick `✨ Enter custom model ID...` to paste any model slug directly from [openrouter.ai/models](https://openrouter.ai/models).
+
+Curated models live in `automation/model_registry.py` (add one line to
 extend). Local open-weight servers (Ollama / LM Studio / vLLM) work through
 the `local` provider and `LOCAL_BASE_URL`. Request settings can be tuned via
 `LLM_TEMPERATURE`, `LLM_MAX_TOKENS`, `LLM_RECOVERY_MAX_TOKENS`,
