@@ -57,6 +57,28 @@ def _python_for_module(module_name: str) -> Optional[str]:
                 )
             return str(candidate)
 
+    # Auto-installation attempt for missing analysis dependencies (e.g. mutmut in Kaggle)
+    logger.info("Module '%s' not found in candidate interpreters. Attempting pip install...", module_name)
+    try:
+        install_res = subprocess.run(
+            [sys.executable, "-m", "pip", "install", "-q", module_name],
+            capture_output=True,
+            text=True,
+            timeout=180,
+        )
+        if install_res.returncode == 0:
+            probe = subprocess.run(
+                [sys.executable, "-c", f"import {module_name}"],
+                capture_output=True,
+                text=True,
+                timeout=15,
+            )
+            if probe.returncode == 0:
+                logger.info("Successfully installed '%s' into %s", module_name, sys.executable)
+                return str(sys.executable)
+    except Exception as e:
+        logger.warning("Auto-installation of '%s' failed: %s", module_name, e)
+
     return None
 
 
@@ -705,6 +727,12 @@ class ExperimentRunner:
                 cache_file.unlink()
 
             test_src = result_dir / "mutmut_test.py"
+            if not test_src.exists():
+                tests_orig = result_dir / "tests.py"
+                if tests_orig.exists():
+                    logger.info("mutmut_test.py not found in %s, generating filtered tests from tests.py", result_dir)
+                    self.create_filtered_test_file(tests_orig, test_src)
+
             test_dst = mutants_dir / "tests" / "mutmut_test.py"
             test_dst.parent.mkdir(exist_ok=True)
             shutil.copy2(test_src, test_dst)

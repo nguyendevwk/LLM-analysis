@@ -48,7 +48,7 @@ git clone https://github.com/nguyendevwk/LLM-analysis.git
 cd LLM-analysis
 
 # 2. Cài đặt các thư viện
-pip install -q -U "bitsandbytes>=0.46.1" transformers accelerate torch coverage pytest
+pip install -q -U "bitsandbytes>=0.46.1" transformers accelerate torch coverage pytest mutmut
 
 # 3. Chạy pipeline Council (Coder 7B + Critic 4B với chuẩn NF4):
 python council_runner.py --mode council --load-in-4bit
