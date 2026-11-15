@@ -1,0 +1,20 @@
+Category,Name,Count,Details
+Tested Method,__init__,19,Called 19 times in tests
+Tested Method,add_item,79,Called 79 times in tests
+Tested Method,remove_item,11,Called 11 times in tests
+Tested Method,get_subtotal,14,Called 14 times in tests
+Tested Method,apply_discount,5,Called 5 times in tests
+Tested Method,calculate_shipping,29,Called 29 times in tests
+Tested Method,calculate_tax,26,Called 26 times in tests
+Tested Method,calculate_total,33,Called 33 times in tests
+Tested Method,total_items,12,Called 12 times in tests
+Tested Method,list_items,9,Called 9 times in tests
+Tested Method,is_empty,7,Called 7 times in tests
+Tested Method,clear_order,10,Called 10 times in tests
+Potential Duplicate,test_init_negative_tax_rate <-> test_interaction_negative_tax_rate_after_construction,100.0,"Similarity: 100.0% (lines 19, 279)"
+Potential Duplicate,test_init_negative_free_shipping_threshold <-> test_interaction_negative_free_shipping_threshold_after_construction,100.0,"Similarity: 100.0% (lines 23, 283)"
+Potential Duplicate,test_init_negative_shipping_cost <-> test_interaction_negative_shipping_cost_after_construction,100.0,"Similarity: 100.0% (lines 27, 287)"
+Potential Duplicate,test_remove_item_after_clearing <-> test_edge_removing_item_after_clearing,100.0,"Similarity: 100.0% (lines 80, 361)"
+Potential Duplicate,test_edge_zero_shipping_cost <-> test_edge_shipping_cost_zero,100.0,"Similarity: 100.0% (lines 327, 446)"
+Potential Duplicate,test_edge_zero_free_shipping_threshold <-> test_edge_free_shipping_threshold_zero,100.0,"Similarity: 100.0% (lines 334, 453)"
+Potential Duplicate,test_edge_discount_pushed_subtotal_below_zero_shipping_applies <-> test_edge_discount_pushed_subtotal_below_zero_and_threshold_not_met,100.0,"Similarity: 100.0% (lines 500, 511)"

@@ -1,0 +1,11 @@
+﻿,mean,mean,mean,mean,mean,mean,std,std,std,std,std,std
+strategy_short,CoT,CoT,CoT,Simple,Simple,Simple,CoT,CoT,CoT,Simple,Simple,Simple
+context_short,Full Context,I+Doc,Interface,Full Context,I+Doc,Interface,Full Context,I+Doc,Interface,Full Context,I+Doc,Interface
+model_display,,,,,,,,,,,,
+Claude Opus 4.5,41.73,40.48,38.66,30.58,31.91,32.35,6.7,9.79,6.28,12.13,10.2,9.65
+Claude Sonnet 4.5,46.92,46.8,41.96,23.48,23.93,28.55,4.08,4.78,8.7,17.96,17.11,11.72
+GPT-OSS 120B,73.22,65.68,57.9,66.99,66.53,45.79,1.46,23.15,20.53,1.85,0.91,11.89
+GPT-OSS 20B,72.3,72.93,63.02,65.79,64.59,49.53,1.97,1.95,23.48,1.98,3.48,12.8
+Gemini 3 Flash,20.71,26.77,24.71,29.96,25.16,22.4,16.22,12.74,12.04,21.58,16.28,11.06
+Gemini 3 Pro,22.78,26.66,23.29,31.71,24.94,27.43,17.43,18.46,13.21,20.45,15.13,10.47
+Nemotron 3 Super 120B,66.33,66.05,43.85,60.37,60.93,54.05,23.34,23.31,38.12,21.25,21.44,21.49

@@ -1,0 +1,14 @@
+Category,Name,Count,Details
+Tested Method,__init__,22,Called 22 times in tests
+Tested Method,add_item,88,Called 88 times in tests
+Tested Method,remove_item,11,Called 11 times in tests
+Tested Method,get_subtotal,31,Called 31 times in tests
+Tested Method,apply_discount,14,Called 14 times in tests
+Tested Method,calculate_shipping,27,Called 27 times in tests
+Tested Method,calculate_tax,17,Called 17 times in tests
+Tested Method,calculate_total,25,Called 25 times in tests
+Tested Method,total_items,26,Called 26 times in tests
+Tested Method,list_items,22,Called 22 times in tests
+Tested Method,is_empty,11,Called 11 times in tests
+Tested Method,clear_order,9,Called 9 times in tests
+Potential Duplicate,test_add_item_then_clear_then_add_fresh <-> test_clear_order_state_consistency_after_clearing_then_adding,100.0,"Similarity: 100.0% (lines 137, 496)"

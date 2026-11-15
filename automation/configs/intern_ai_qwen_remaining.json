@@ -1,0 +1,15 @@
+{
+  "description": "InternAI qwen3.8-27b remaining 9 runs for stats",
+  "delay_between_experiments": 15,
+  "experiments": [
+    {"model": "intern-ai-qwen3-8-27b", "strategy": "simple_prompting", "context": "full_context"},
+    {"model": "intern-ai-qwen3-8-27b", "strategy": "simple_prompting", "context": "full_context"},
+    {"model": "intern-ai-qwen3-8-27b", "strategy": "simple_prompting", "context": "full_context"},
+    {"model": "intern-ai-qwen3-8-27b", "strategy": "simple_prompting", "context": "full_context"},
+    {"model": "intern-ai-qwen3-8-27b", "strategy": "simple_prompting", "context": "full_context"},
+    {"model": "intern-ai-qwen3-8-27b", "strategy": "simple_prompting", "context": "full_context"},
+    {"model": "intern-ai-qwen3-8-27b", "strategy": "simple_prompting", "context": "full_context"},
+    {"model": "intern-ai-qwen3-8-27b", "strategy": "simple_prompting", "context": "full_context"},
+    {"model": "intern-ai-qwen3-8-27b", "strategy": "simple_prompting", "context": "full_context"}
+  ]
+}

@@ -1,0 +1,21 @@
+Category,Name,Count,Details
+Tested Method,__init__,19,Called 19 times in tests
+Tested Method,add_item,70,Called 70 times in tests
+Tested Method,remove_item,7,Called 7 times in tests
+Tested Method,get_subtotal,5,Called 5 times in tests
+Tested Method,apply_discount,11,Called 11 times in tests
+Tested Method,calculate_shipping,6,Called 6 times in tests
+Tested Method,calculate_tax,6,Called 6 times in tests
+Tested Method,calculate_total,17,Called 17 times in tests
+Tested Method,total_items,7,Called 7 times in tests
+Tested Method,list_items,8,Called 8 times in tests
+Tested Method,is_empty,12,Called 12 times in tests
+Tested Method,clear_order,8,Called 8 times in tests
+Potential Duplicate,test_remove_item_merged <-> test_state_consistency_add_duplicate_remove,100.0,"Similarity: 100.0% (lines 133, 376)"
+Potential Duplicate,test_calculate_tax_zero <-> test_edge_case_tax_boundary_zero,100.0,"Similarity: 100.0% (lines 219, 470)"
+Potential Duplicate,test_clear_order_after_adding <-> test_is_empty_after_clearing,100.0,"Similarity: 100.0% (lines 331, 363)"
+Potential Duplicate,test_clear_order_after_adding <-> test_state_consistency_clear_is_empty,100.0,"Similarity: 100.0% (lines 331, 402)"
+Potential Duplicate,test_clear_order_after_adding <-> test_edge_case_clear_order_removes_all,100.0,"Similarity: 100.0% (lines 331, 515)"
+Potential Duplicate,test_is_empty_after_clearing <-> test_state_consistency_clear_is_empty,100.0,"Similarity: 100.0% (lines 363, 402)"
+Potential Duplicate,test_is_empty_after_clearing <-> test_edge_case_clear_order_removes_all,100.0,"Similarity: 100.0% (lines 363, 515)"
+Potential Duplicate,test_state_consistency_clear_is_empty <-> test_edge_case_clear_order_removes_all,100.0,"Similarity: 100.0% (lines 402, 515)"

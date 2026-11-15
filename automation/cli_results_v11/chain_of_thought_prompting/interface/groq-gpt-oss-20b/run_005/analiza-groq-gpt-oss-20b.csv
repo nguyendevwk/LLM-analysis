@@ -1,0 +1,18 @@
+Category,Name,Count,Details
+Tested Method,__init__,106,Called 106 times in tests
+Tested Method,add_item,78,Called 78 times in tests
+Tested Method,remove_item,11,Called 11 times in tests
+Tested Method,get_subtotal,22,Called 22 times in tests
+Tested Method,apply_discount,8,Called 8 times in tests
+Tested Method,calculate_shipping,6,Called 6 times in tests
+Tested Method,calculate_tax,5,Called 5 times in tests
+Tested Method,calculate_total,23,Called 23 times in tests
+Tested Method,total_items,17,Called 17 times in tests
+Tested Method,list_items,11,Called 11 times in tests
+Tested Method,is_empty,8,Called 8 times in tests
+Tested Method,clear_order,8,Called 8 times in tests
+Potential Duplicate,test_list_items_immutability <-> test_total_list_items_immutability,100.0,"Similarity: 100.0% (lines 212, 484)"
+Potential Duplicate,test_clear_order_already_empty <-> test_edge_clear_already_empty,100.0,"Similarity: 100.0% (lines 241, 607)"
+Potential Duplicate,test_total_discount_equal <-> test_total_discount_greater,99.6,"Similarity: 99.6% (lines 379, 386)"
+Potential Duplicate,test_total_discount_equal <-> test_total_edge_discount_greater_shipping_cost,99.6,"Similarity: 99.6% (lines 379, 449)"
+Potential Duplicate,test_total_discount_greater <-> test_total_edge_discount_greater_shipping_cost,100.0,"Similarity: 100.0% (lines 386, 449)"

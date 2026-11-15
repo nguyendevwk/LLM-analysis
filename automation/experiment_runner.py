@@ -8,6 +8,7 @@ and quality metrics calculation.
 
 import json
 import os
+import sys
 import subprocess
 import logging
 import re
@@ -23,6 +24,40 @@ if TYPE_CHECKING:
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+def _python_for_module(module_name: str) -> Optional[str]:
+    """Return an interpreter that can import *module_name*.
+
+    The experiment launcher is sometimes started with ``/usr/bin/python``
+    while the project dependencies are installed in ``.venv``.  Analysis
+    subprocesses must use the same dependency environment as the runner, or
+    coverage and mutation testing fail before they can produce a report.
+    """
+    candidates = [Path(sys.executable)]
+    project_python = Path(__file__).resolve().parents[1] / ".venv" / "bin" / "python"
+    if project_python not in candidates:
+        candidates.append(project_python)
+
+    for candidate in candidates:
+        if not candidate.is_file():
+            continue
+        probe = subprocess.run(
+            [str(candidate), "-c", f"import {module_name}"],
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        if probe.returncode == 0:
+            if candidate != Path(sys.executable):
+                logger.info(
+                    "Using project interpreter %s for %s",
+                    candidate,
+                    module_name,
+                )
+            return str(candidate)
+
+    return None
 
 
 class ExperimentRunner:
@@ -124,7 +159,7 @@ class ExperimentRunner:
         """Create a test file with only passing tests for mutation testing."""
         try:
             result = subprocess.run(
-                ['python', '-m', 'unittest', source_test_file.stem, '-v'],
+                [                sys.executable, '-m', 'unittest', source_test_file.stem, '-v'],
                 cwd=source_test_file.parent,
                 capture_output=True,
                 text=True,
@@ -484,9 +519,22 @@ class ExperimentRunner:
 
     def run_coverage_analysis(self, result_dir, tests_file):
         """Run coverage.py analysis on the test suite."""
+        coverage_python = _python_for_module("coverage")
+        if coverage_python is None:
+            logger.error(
+                "Coverage is unavailable in %s and the project .venv. "
+                "Install dependencies with `uv sync` or `pip install -e .`.",
+                sys.executable,
+            )
+            return {
+                'statements': 0, 'missing': 0, 'coverage_percent': 0,
+                'branch_coverage_percent': 0, 'partial_coverage': 0,
+                'status': 'coverage_unavailable',
+            }
+
         try:
             cmd = [
-                'python', '-m', 'coverage', 'run',
+                coverage_python, '-m', 'coverage', 'run',
                 '--source=.', '--branch', '-m', 'unittest',
                 tests_file.stem
             ]
@@ -499,7 +547,7 @@ class ExperimentRunner:
                 logger.warning("Some tests failed during coverage run, continuing with analysis")
 
             report_result = subprocess.run(
-                ['python', '-m', 'coverage', 'report'],
+                [coverage_python, '-m', 'coverage', 'report'],
                 cwd=result_dir, capture_output=True, text=True
             )
 
@@ -508,7 +556,7 @@ class ExperimentRunner:
                 return None
 
             subprocess.run(
-                ['python', '-m', 'coverage', 'html'],
+                [coverage_python, '-m', 'coverage', 'html'],
                 cwd=result_dir, capture_output=True, text=True
             )
 
@@ -585,6 +633,19 @@ class ExperimentRunner:
                     'timeout': 0, 'mutation_score': 0.0, 'status': 'skipped_no_dir'
                 }
 
+            mutmut_python = _python_for_module("mutmut")
+            if mutmut_python is None:
+                    logger.error(
+                        "mutmut is unavailable in %s and the project .venv. "
+                        "Install dependencies with `uv sync` or `pip install -e .`.",
+                        sys.executable,
+                    )
+                    return {
+                        'total_mutants': 0, 'killed': 0, 'survived': 0,
+                        'timeout': 0, 'mutation_score': 0.0,
+                        'status': 'mutmut_unavailable',
+                    }
+
             # mutmut 2.x caches mutation ids by source line. The generated
             # tests are replaced for every experiment, so a cache from a
             # previous source/test pair can produce stale results or crash
@@ -609,13 +670,13 @@ class ExperimentRunner:
             )
 
             result = subprocess.run(
-                ['python', '-m', 'mutmut', 'run'],
+                [mutmut_python, '-m', 'mutmut', 'run'],
                 cwd=mutants_dir, capture_output=True, text=True, timeout=600,
                 env=env
             )
 
             results_result = subprocess.run(
-                ['python', '-m', 'mutmut', 'results'],
+                [mutmut_python, '-m', 'mutmut', 'results'],
                 cwd=mutants_dir, capture_output=True, text=True, env=env
             )
 
@@ -757,7 +818,7 @@ class ExperimentRunner:
 
         try:
             compile_result = subprocess.run(
-                ['python', '-m', 'py_compile', tests_file.name],
+                [sys.executable, '-m', 'py_compile', tests_file.name],
                 cwd=tests_file.parent, capture_output=True, text=True, timeout=30
             )
 
@@ -766,7 +827,7 @@ class ExperimentRunner:
                 logger.info("Tests compile successfully")
 
                 unittest_result = subprocess.run(
-                    ['python', '-m', 'unittest', tests_file.stem, '-v'],
+                    [sys.executable, '-m', 'unittest', tests_file.stem, '-v'],
                     cwd=tests_file.parent, capture_output=True, text=True, timeout=120
                 )
 

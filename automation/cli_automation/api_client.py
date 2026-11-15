@@ -20,12 +20,22 @@ Authentication:
 
 Configuration (env vars, all optional):
     LLM_TEMPERATURE   Sampling temperature (default: 0.2; 0 = greedy)
-    LLM_MAX_TOKENS    Max completion tokens (default: 8192; 0 or empty =
-                      no limit — omit the parameter and let the provider decide)
+    LLM_MAX_TOKENS    Max completion tokens (unset, 0 or empty =
+                      no client-side limit — omit the parameter and let the
+                      provider decide)
+    LLM_RECOVERY_MAX_TOKENS
+                      Completion limit for one retry after an empty
+                      reasoning-only response (unset by default)
     LLM_TIMEOUT       Request timeout in seconds (default: 300)
     LLM_MAX_RETRIES   Attempts per request incl. backoff (default: 4)
     <PROVIDER>_BASE_URL   Override the provider base URL (tests, proxies,
                           local servers such as Ollama/LM Studio/vLLM)
+    <PROVIDER>_API_KEY_SLOT
+                          Use exactly one numbered key (slot 1 is the base
+                          variable; kept for backwards compatibility)
+    <PROVIDER>_API_KEY_START_SLOT
+                          Start with this key and keep later numbered keys as
+                          quota fallbacks, e.g. GEMINI_API_KEY_START_SLOT=3
 
 Technical Details:
     - Inherits BaseCLIClient, so Chain-of-Thought sequential prompting
@@ -78,6 +88,13 @@ PROVIDERS: Dict[str, Dict] = {
         "key_env": "LOCAL_API_KEY",
         "extra_headers": {},
         "key_required": False,
+    },
+    "intern-ai": {
+        "label": "InternAI / Discovery API",
+        "base_url": "https://discovery-api.intern-ai.org.cn/v1",
+        "key_env": "INTERNAI_API_KEY",
+        "extra_headers": {},
+        "key_required": True,
     },
 }
 
@@ -166,7 +183,8 @@ class APIClient(BaseCLIClient):
             model: Provider-native model id (e.g. 'google/gemma-4-31b-it:free')
             timeout: Request timeout in seconds (default: LLM_TIMEOUT or 300)
             temperature: Sampling temperature (default: LLM_TEMPERATURE or 0.2)
-            max_tokens: Max completion tokens (default: LLM_MAX_TOKENS or 8192)
+            max_tokens: Optional completion-token limit. When unset, the
+                        request omits ``max_tokens``.
 
         Raises:
             ValueError: If the provider is unknown
@@ -186,9 +204,11 @@ class APIClient(BaseCLIClient):
         self.base_url = os.environ.get(
             f"{provider.upper()}_BASE_URL", config["base_url"]
         ).rstrip("/")
-        self.api_key = os.environ.get(config["key_env"]) or None
-        self.key_required = config["key_required"]
         self.key_env = config["key_env"]
+        self.api_keys = self._load_api_keys(self.key_env)
+        self._api_key_index = 0
+        self.api_key = self.api_keys[0] if self.api_keys else None
+        self.key_required = config["key_required"]
 
         self.temperature = (
             temperature if temperature is not None
@@ -196,7 +216,7 @@ class APIClient(BaseCLIClient):
         )
         self.max_tokens = (
             max_tokens if max_tokens is not None
-            else _parse_max_tokens(os.environ.get("LLM_MAX_TOKENS", "8192"))
+            else _parse_max_tokens(os.environ.get("LLM_MAX_TOKENS"))
         )
         resolved_timeout = timeout or int(os.environ.get("LLM_TIMEOUT", "300"))
         self.max_retries = int(os.environ.get("LLM_MAX_RETRIES", "4"))
@@ -323,6 +343,74 @@ class APIClient(BaseCLIClient):
         headers.update(self.provider_config.get("extra_headers", {}))
         return headers
 
+    @staticmethod
+    def _load_api_keys(base_key_env: str) -> List[str]:
+        """Load one key or a consecutive, ordered set of quota fallbacks."""
+        selected_slot = os.environ.get(f"{base_key_env}_SLOT")
+        if selected_slot:
+            try:
+                slot = int(selected_slot)
+            except ValueError as error:
+                raise ValueError(
+                    f"{base_key_env}_SLOT must be a positive integer"
+                ) from error
+            if slot < 1:
+                raise ValueError(f"{base_key_env}_SLOT must be positive")
+            key = os.environ.get(
+                base_key_env if slot == 1 else f"{base_key_env}_{slot}"
+            )
+            return [key.strip()] if key else []
+
+        start_slot_raw = os.environ.get(f"{base_key_env}_START_SLOT", "1")
+        try:
+            start_slot = int(start_slot_raw)
+        except ValueError as error:
+            raise ValueError(
+                f"{base_key_env}_START_SLOT must be a positive integer"
+            ) from error
+        if start_slot < 1:
+            raise ValueError(f"{base_key_env}_START_SLOT must be positive")
+
+        key_names = [
+            base_key_env if start_slot == 1 else f"{base_key_env}_{start_slot}"
+        ]
+        suffix = start_slot + 1
+        while os.environ.get(f"{base_key_env}_{suffix}"):
+            key_names.append(f"{base_key_env}_{suffix}")
+            suffix += 1
+        return [os.environ[name].strip() for name in key_names if os.environ.get(name)]
+
+    @staticmethod
+    def _is_quota_exhausted(response: requests.Response) -> bool:
+        """Recognize quota exhaustion separately from transient rate limiting."""
+        if response.status_code != 429:
+            return False
+        body = response.text.lower()
+        return any(
+            marker in body
+            for marker in (
+                "quota",
+                "resource_exhausted",
+                "daily limit",
+                "per minute limit",
+                "limit exceeded",
+            )
+        )
+
+    def _rotate_api_key(self) -> bool:
+        """Switch to the next configured key, returning whether one is available."""
+        if len(self.api_keys) < 2:
+            return False
+        self._api_key_index = (self._api_key_index + 1) % len(self.api_keys)
+        self.api_key = self.api_keys[self._api_key_index]
+        logger.warning(
+            "Rotating %s to configured fallback key %d/%d",
+            self.key_env,
+            self._api_key_index + 1,
+            len(self.api_keys),
+        )
+        return True
+
     def _post_chat_completions(self, payload: Dict) -> str:
         """
         POST /chat/completions with retry/backoff logic.
@@ -337,12 +425,19 @@ class APIClient(BaseCLIClient):
         """
         url = f"{self.base_url}/chat/completions"
         drop_temperature = False
+        recovery_max_tokens = (
+            self.max_tokens
+            or _parse_max_tokens(os.environ.get("LLM_RECOVERY_MAX_TOKENS"))
+        )
+        empty_completion_retried = False
         last_error = "no attempt made"
 
         for attempt in range(self.max_retries):
             body = dict(payload)
             if drop_temperature:
                 body.pop("temperature", None)
+            if empty_completion_retried:
+                body["max_tokens"] = recovery_max_tokens
 
             start = time.time()
             try:
@@ -379,7 +474,36 @@ class APIClient(BaseCLIClient):
                                 usage.get("prompt_tokens"),
                                 usage.get("completion_tokens"),
                             )
-                        return self._extract_content(data)
+                        try:
+                            return self._extract_content(data)
+                        except RuntimeError as error:
+                            if not empty_completion_retried:
+                                finish_reason = (data.get("choices") or [{}])[0].get(
+                                    "finish_reason"
+                                )
+                                if recovery_max_tokens is None:
+                                    logger.warning(
+                                        "Model returned no visible content "
+                                        "(finish_reason=%s); retrying without "
+                                        "a max_tokens limit",
+                                        finish_reason,
+                                    )
+                                else:
+                                    logger.warning(
+                                        "Model returned no visible content "
+                                        "(finish_reason=%s); retrying with "
+                                        "max_tokens=%d",
+                                        finish_reason,
+                                        recovery_max_tokens,
+                                    )
+                                empty_completion_retried = True
+                                self._rotate_api_key()
+                                if recovery_max_tokens is None:
+                                    body.pop("max_tokens", None)
+                                else:
+                                    body["max_tokens"] = recovery_max_tokens
+                                continue
+                            raise error
 
                 elif (
                     response.status_code == 400
@@ -394,6 +518,8 @@ class APIClient(BaseCLIClient):
                     continue
 
                 elif response.status_code in (401, 403):
+                    if self._rotate_api_key() and attempt < self.max_retries - 1:
+                        continue
                     raise RuntimeError(
                         f"{self.provider_config['label']} authentication failed "
                         f"({response.status_code}): {response.text[:300]}. "
@@ -401,10 +527,29 @@ class APIClient(BaseCLIClient):
                     )
 
                 elif response.status_code == 404:
+                    if (
+                        self._rotate_api_key()
+                        and attempt < self.max_retries - 1
+                        and any(
+                            marker in response.text.lower()
+                            for marker in ("zdr", "endpoint", "data policy")
+                        )
+                    ):
+                        continue
+                    restriction_hint = ""
+                    if any(
+                        marker in response.text.lower()
+                        for marker in ("zdr", "data policy")
+                    ):
+                        restriction_hint = (
+                            " This may be caused by OpenRouter account privacy/"
+                            "ZDR settings; check the account associated with "
+                            f"{self.key_env}."
+                        )
                     raise RuntimeError(
                         f"Model '{self.model}' not found on "
                         f"{self.provider_config['label']} (404): "
-                        f"{response.text[:300]}"
+                        f"{response.text[:300]}{restriction_hint}"
                     )
 
                 elif response.status_code == 400:
@@ -417,7 +562,9 @@ class APIClient(BaseCLIClient):
                     last_error = (
                         f"HTTP {response.status_code}: {response.text[:300]}"
                     )
-                    if response.status_code == 429 or response.status_code >= 500:
+                    if response.status_code >= 500 or response.status_code == 429:
+                        if self._is_quota_exhausted(response):
+                            self._rotate_api_key()
                         retry_after = response.headers.get("Retry-After")
                         logger.warning(
                             "Attempt %d/%d got %s (Retry-After: %s)",
@@ -475,14 +622,29 @@ class APIClient(BaseCLIClient):
         if not content:
             reasoning = message.get("reasoning_content") or message.get("reasoning")
             hint = (
-                " (model returned reasoning only — try a non-reasoning model "
-                "or raise LLM_MAX_TOKENS)"
+                " (model returned reasoning only — set LLM_MAX_TOKENS "
+                "to a positive value or try a non-reasoning model)"
                 if reasoning else ""
             )
             raise RuntimeError(f"Empty completion content from model{hint}")
 
         logger.info("Received response (%d chars)", len(content))
         return content
+
+    @staticmethod
+    def _is_recoverable_empty_completion(data: Dict) -> bool:
+        """Identify reasoning-only or token-limit completions worth retrying."""
+        choices = data.get("choices") or []
+        if not choices:
+            return False
+
+        choice = choices[0] or {}
+        message = choice.get("message") or {}
+        has_reasoning = bool(
+            message.get("reasoning_content") or message.get("reasoning")
+        )
+        finish_reason = choice.get("finish_reason")
+        return has_reasoning or finish_reason in {"length", "max_tokens"}
 
     def _log_code_detection(self, text: str):
         """
@@ -508,4 +670,3 @@ class APIClient(BaseCLIClient):
     def cleanup(self):
         """Release HTTP session resources."""
         logger.debug("Cleanup called for %s", self.__class__.__name__)
-

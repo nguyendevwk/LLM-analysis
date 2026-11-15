@@ -1,0 +1,266 @@
+{
+  "compilation": {
+    "compilation_success": true,
+    "execution_success": false,
+    "tests_run": 49,
+    "tests_passed": 42,
+    "tests_failed": 7,
+    "test_errors": [],
+    "compilation_errors": []
+  },
+  "coverage": {
+    "statements": 93,
+    "missing": 6,
+    "coverage_percent": 92,
+    "branch_coverage_percent": 89,
+    "partial_coverage": 0
+  },
+  "mutation": {
+    "total_mutants": 27,
+    "killed": 0,
+    "survived": 27,
+    "timeout": 0,
+    "suspicious": 0,
+    "skipped": 0,
+    "mutation_score": 0.0
+  },
+  "scenarios": {
+    "total_test_methods": 49,
+    "tested_methods": {
+      "methods_tested": [
+        "__init__",
+        "add_item",
+        "remove_item",
+        "get_subtotal",
+        "apply_discount",
+        "calculate_shipping",
+        "calculate_tax",
+        "calculate_total",
+        "total_items",
+        "list_items",
+        "is_empty",
+        "clear_order"
+      ],
+      "methods_tested_count": 12,
+      "total_methods": 12,
+      "method_coverage_rate": 100.0,
+      "method_call_counts": {
+        "__init__": 7,
+        "add_item": 26,
+        "remove_item": 3,
+        "get_subtotal": 4,
+        "apply_discount": 8,
+        "calculate_shipping": 5,
+        "calculate_tax": 4,
+        "calculate_total": 6,
+        "total_items": 6,
+        "list_items": 6,
+        "is_empty": 4,
+        "clear_order": 1
+      }
+    },
+    "duplicates": {
+      "total_tests_analyzed": 49,
+      "duplicate_pairs_found": 0,
+      "unique_duplicate_tests": 0,
+      "duplicates": []
+    },
+    "assertion_quality": {
+      "total_assertions": 38,
+      "weak_assertions_count": 4,
+      "strong_assertions_count": 34,
+      "weak_assertions": [
+        {
+          "test": "test_is_empty_on_new_order",
+          "line": 34,
+          "type": "assertTrue"
+        },
+        {
+          "test": "test_is_empty_after_adding_item",
+          "line": 38,
+          "type": "assertFalse"
+        },
+        {
+          "test": "test_remove_item_success",
+          "line": 86,
+          "type": "assertTrue"
+        },
+        {
+          "test": "test_clear_order",
+          "line": 221,
+          "type": "assertTrue"
+        }
+      ],
+      "assertions_without_message": 60,
+      "assertion_quality_score": 89.5
+    },
+    "exception_quality": {
+      "exception_tests_count": 22,
+      "tests_with_message_check": 0,
+      "generic_exception_usage": 0,
+      "exception_tests": [
+        {
+          "test": "test_init_negative_tax_rate_raises_value_error",
+          "line": 22,
+          "exception_type": "ValueError"
+        },
+        {
+          "test": "test_init_negative_shipping_threshold_raises_value_error",
+          "line": 26,
+          "exception_type": "ValueError"
+        },
+        {
+          "test": "test_init_negative_shipping_cost_raises_value_error",
+          "line": 30,
+          "exception_type": "ValueError"
+        },
+        {
+          "test": "test_add_item_negative_price_raises_value_error",
+          "line": 60,
+          "exception_type": "ValueError"
+        },
+        {
+          "test": "test_add_item_zero_quantity_raises_value_error",
+          "line": 64,
+          "exception_type": "ValueError"
+        },
+        {
+          "test": "test_add_item_negative_quantity_raises_value_error",
+          "line": 68,
+          "exception_type": "ValueError"
+        },
+        {
+          "test": "test_add_item_invalid_name_type_raises_type_error",
+          "line": 72,
+          "exception_type": "TypeError"
+        },
+        {
+          "test": "test_add_item_invalid_price_type_raises_type_error",
+          "line": 76,
+          "exception_type": "TypeError"
+        },
+        {
+          "test": "test_add_item_invalid_quantity_type_raises_type_error",
+          "line": 80,
+          "exception_type": "TypeError"
+        },
+        {
+          "test": "test_remove_nonexistent_item_raises_error",
+          "line": 90,
+          "exception_type": "(KeyError, ValueError)"
+        }
+      ],
+      "exception_quality_score": 0.0
+    },
+    "independence": {
+      "tests_modifying_self_count": 0,
+      "tests_with_class_variables_count": 0,
+      "tests_modifying_self": [],
+      "independence_score": 100,
+      "is_independent": true
+    },
+    "naming_quality": {
+      "total_tests": 49,
+      "average_name_length": 40.3,
+      "short_names_count": 0,
+      "descriptive_names_count": 39,
+      "naming_patterns": {
+        "should": 0,
+        "when": 0,
+        "given": 0,
+        "test_": 49,
+        "with": 3,
+        "returns": 1,
+        "raises": 20
+      },
+      "naming_quality_score": 79.6,
+      "short_names": []
+    },
+    "code_smells": {
+      "smells": {
+        "tests_without_assertions": [],
+        "very_long_tests": [],
+        "tests_with_try_except": [],
+        "tests_with_sleep": [],
+        "magic_numbers": [
+          {
+            "test": "test_add_existing_item_increments_quantity",
+            "count": 4,
+            "numbers": [
+              3,
+              10.0,
+              2,
+              5
+            ]
+          },
+          {
+            "test": "test_get_subtotal_multiple_items",
+            "count": 4,
+            "numbers": [
+              1.5,
+              2.0,
+              3,
+              9.0
+            ]
+          },
+          {
+            "test": "test_total_items_multiple_entries",
+            "count": 5,
+            "numbers": [
+              2,
+              3,
+              5,
+              10.0,
+              20.0
+            ]
+          }
+        ],
+        "commented_code_lines": 0
+      },
+      "smell_score": 100,
+      "total_smells_found": 0
+    }
+  },
+  "summary": {
+    "model": "gemini-api-3.7-flash",
+    "strategy": "simple_prompting",
+    "context_type": "interface",
+    "timestamp": "2026-10-14T19:40:26.881510",
+    "response_time": 248.6988685131073,
+    "compilation_success_rate": 100,
+    "execution_success_rate": 0,
+    "tests_generated": 49,
+    "tests_passed": 42,
+    "tests_failed": 7,
+    "test_success_rate": 85.7,
+    "statement_coverage": 92,
+    "branch_coverage": 89,
+    "missing_statements": 6,
+    "total_statements": 93,
+    "mutation_score": 0.0,
+    "mutants_killed": 0,
+    "mutants_survived": 27,
+    "total_mutants": 27,
+    "total_test_methods": 49,
+    "total_assertions": 38,
+    "tests_with_error_handling": 22,
+    "methods_tested_count": 12,
+    "total_methods": 12,
+    "method_coverage_rate": 100.0,
+    "duplicate_tests_found": 0,
+    "avg_assertions_per_test": 0.78,
+    "assertion_quality_score": 89.5,
+    "weak_assertions_count": 4,
+    "strong_assertions_count": 34,
+    "exception_quality_score": 0.0,
+    "exception_tests_count": 22,
+    "tests_with_message_check": 0,
+    "independence_score": 100,
+    "is_independent": true,
+    "naming_quality_score": 79.6,
+    "average_name_length": 40.3,
+    "smell_score": 100,
+    "total_smells_found": 0,
+    "overall_quality_score": 79.3
+  }
+}

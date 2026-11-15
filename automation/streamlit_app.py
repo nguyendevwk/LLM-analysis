@@ -17,6 +17,8 @@ import html
 from pathlib import Path
 from datetime import datetime
 
+import model_registry
+
 IS_WINDOWS = platform.system() == "Windows"
 
 st.set_page_config(
@@ -250,8 +252,8 @@ st.markdown("""
 
 
 def get_available_models():
-    """Return available models grouped by provider."""
-    return {
+    """Return all CLI and registry models grouped for the model selector."""
+    models = {
         "Claude Code": {
             "claude-code-sonnet-4.5": "Claude Sonnet 4.5",
             "claude-code-opus-4.5": "Claude Opus 4.5",
@@ -260,24 +262,9 @@ def get_available_models():
             "gemini-3-pro": "Gemini 3 Pro",
             "gemini-3-flash": "Gemini 3 Flash",
         },
-        # Free providers (API-key based, see model_registry.py)
-        "Gemini API (free tier)": {
-            "gemini-api-3.8-flash": "Gemini 3.8 Flash",
-            "gemini-api-3.7-flash": "Gemini 3.7 Flash",
-            "gemini-api-3.5-flash": "Gemini 3.5 Flash",
-            "gemini-api-3.5-flash-lite": "Gemini 3.5 Flash-Lite",
-        },
-        "Groq (free tier)": {
-            "groq-gpt-oss-120b": "GPT-OSS 120B",
-            "groq-gpt-oss-20b": "GPT-OSS 20B",
-            "groq-qwen3.8-27b": "Qwen3.8 27B",
-        },
-        "OpenRouter (free models)": {
-            "openrouter-gemma-4-31b-it": "Gemma 4 31B IT",
-            "openrouter-nemotron-3-super-120b-a12b": "Nemotron 3 Super 120B",
-            "openrouter-inkling": "Inkling",
-        },
     }
+    models.update(model_registry.grouped_models())
+    return models
 
 
 def get_model_display_name(model_id: str) -> str:
@@ -474,7 +461,7 @@ def render_config_view():
         with adv_col1:
             run_id = st.number_input("Run ID (0 = auto)", min_value=0, value=0)
         with adv_col2:
-            results_dir = st.text_input("Results directory", value="cli_results")
+            results_dir = st.text_input("Results directory", value="cli_results_v1")
 
         st.markdown("---")
         can_run = mode == "Legacy (OrderCalculator)" or (source_file and Path(source_file).exists() and class_info)
@@ -559,7 +546,7 @@ def render_running_view():
         config["context"],
         config["class_name"],
         config["run_id"],
-        config["results_dir"] if config["results_dir"] != "cli_results" else None,
+        config["results_dir"] if config["results_dir"] != "cli_results_v1" else None,
         config.get("full_scenario", False)
     )
 
@@ -571,7 +558,7 @@ def render_running_view():
     process.wait()
     success = process.returncode == 0
 
-    actual_dir = config["results_dir"] or "cli_results"
+    actual_dir = config["results_dir"] or "cli_results_v1"
     if config.get("full_scenario", False):
         metrics = parse_full_scenario_results(actual_dir, config["model"])
     else:

@@ -1,0 +1,16 @@
+{
+  "description": "Groq gpt-oss-120b stats: 10 runs simple_prompting/full_context (dev plan - conservative delay)",
+  "delay_between_experiments": 20,
+  "experiments": [
+    {"model": "groq-gpt-oss-120b", "strategy": "simple_prompting", "context": "full_context"},
+    {"model": "groq-gpt-oss-120b", "strategy": "simple_prompting", "context": "full_context"},
+    {"model": "groq-gpt-oss-120b", "strategy": "simple_prompting", "context": "full_context"},
+    {"model": "groq-gpt-oss-120b", "strategy": "simple_prompting", "context": "full_context"},
+    {"model": "groq-gpt-oss-120b", "strategy": "simple_prompting", "context": "full_context"},
+    {"model": "groq-gpt-oss-120b", "strategy": "simple_prompting", "context": "full_context"},
+    {"model": "groq-gpt-oss-120b", "strategy": "simple_prompting", "context": "full_context"},
+    {"model": "groq-gpt-oss-120b", "strategy": "simple_prompting", "context": "full_context"},
+    {"model": "groq-gpt-oss-120b", "strategy": "simple_prompting", "context": "full_context"},
+    {"model": "groq-gpt-oss-120b", "strategy": "simple_prompting", "context": "full_context"}
+  ]
+}

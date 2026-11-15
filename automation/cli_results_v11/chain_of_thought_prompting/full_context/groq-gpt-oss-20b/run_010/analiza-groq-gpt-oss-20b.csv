@@ -1,0 +1,23 @@
+Category,Name,Count,Details
+Tested Method,__init__,104,Called 104 times in tests
+Tested Method,add_item,79,Called 79 times in tests
+Tested Method,remove_item,8,Called 8 times in tests
+Tested Method,get_subtotal,5,Called 5 times in tests
+Tested Method,apply_discount,9,Called 9 times in tests
+Tested Method,calculate_shipping,5,Called 5 times in tests
+Tested Method,calculate_tax,4,Called 4 times in tests
+Tested Method,calculate_total,19,Called 19 times in tests
+Tested Method,total_items,3,Called 3 times in tests
+Tested Method,list_items,4,Called 4 times in tests
+Tested Method,is_empty,7,Called 7 times in tests
+Tested Method,clear_order,4,Called 4 times in tests
+Potential Duplicate,test_add_item_same_name_diff_price <-> test_add_item_duplicate_name_different_price,100.0,"Similarity: 100.0% (lines 118, 414)"
+Potential Duplicate,test_add_item_price_int_quantity_int_dup1 <-> test_add_item_price_int_quantity_int_dup3,100.0,"Similarity: 100.0% (lines 577, 589)"
+Potential Duplicate,test_add_item_price_int_quantity_int_dup1 <-> test_add_item_price_int_quantity_int_dup5,100.0,"Similarity: 100.0% (lines 577, 601)"
+Potential Duplicate,test_add_item_price_int_quantity_int_dup1 <-> test_add_item_price_int_quantity_int_dup7,100.0,"Similarity: 100.0% (lines 577, 613)"
+Potential Duplicate,test_add_item_price_int_quantity_int_dup1 <-> test_add_item_price_int_quantity_int_dup9,100.0,"Similarity: 100.0% (lines 577, 625)"
+Potential Duplicate,test_add_item_price_int_quantity_int_dup1 <-> test_add_item_price_int_quantity_int_dup11,100.0,"Similarity: 100.0% (lines 577, 637)"
+Potential Duplicate,test_add_item_price_int_quantity_int_dup1 <-> test_add_item_price_int_quantity_int_dup13,100.0,"Similarity: 100.0% (lines 577, 649)"
+Potential Duplicate,test_add_item_price_int_quantity_int_dup1 <-> test_add_item_price_int_quantity_int_dup15,100.0,"Similarity: 100.0% (lines 577, 661)"
+Potential Duplicate,test_add_item_price_float_quantity_int_dup2 <-> test_add_item_price_float_quantity_int_dup4,100.0,"Similarity: 100.0% (lines 583, 595)"
+Potential Duplicate,test_add_item_price_float_quantity_int_dup2 <-> test_add_item_price_float_quantity_int_dup6,100.0,"Similarity: 100.0% (lines 583, 607)"

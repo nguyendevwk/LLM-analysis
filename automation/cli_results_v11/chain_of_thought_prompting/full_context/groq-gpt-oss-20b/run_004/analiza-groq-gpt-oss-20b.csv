@@ -1,0 +1,23 @@
+Category,Name,Count,Details
+Tested Method,__init__,27,Called 27 times in tests
+Tested Method,add_item,73,Called 73 times in tests
+Tested Method,remove_item,8,Called 8 times in tests
+Tested Method,get_subtotal,3,Called 3 times in tests
+Tested Method,apply_discount,7,Called 7 times in tests
+Tested Method,calculate_shipping,6,Called 6 times in tests
+Tested Method,calculate_tax,6,Called 6 times in tests
+Tested Method,calculate_total,24,Called 24 times in tests
+Tested Method,total_items,2,Called 2 times in tests
+Tested Method,list_items,3,Called 3 times in tests
+Tested Method,is_empty,4,Called 4 times in tests
+Tested Method,clear_order,5,Called 5 times in tests
+Potential Duplicate,test_add_item_default_quantity <-> test_add_item_default_quantity,100.0,"Similarity: 100.0% (lines 108, 537)"
+Potential Duplicate,test_add_item_large_quantity <-> test_add_item_large_quantity_again,100.0,"Similarity: 100.0% (lines 113, 542)"
+Potential Duplicate,test_add_item_float_price <-> test_add_item_float_price_again,100.0,"Similarity: 100.0% (lines 118, 547)"
+Potential Duplicate,test_add_item_int_price <-> test_add_item_int_price_again,100.0,"Similarity: 100.0% (lines 123, 552)"
+Potential Duplicate,test_add_item_int_quantity <-> test_add_item_int_quantity_again,100.0,"Similarity: 100.0% (lines 128, 557)"
+Potential Duplicate,test_add_item_float_quantity <-> test_add_item_float_quantity_again,100.0,"Similarity: 100.0% (lines 133, 562)"
+Potential Duplicate,test_add_item_negative_price <-> test_add_item_negative_price_again,100.0,"Similarity: 100.0% (lines 138, 567)"
+Potential Duplicate,test_add_item_negative_quantity <-> test_add_item_negative_quantity_again,100.0,"Similarity: 100.0% (lines 143, 572)"
+Potential Duplicate,test_remove_item_duplicate_names <-> test_remove_item_after_duplicate_names,100.0,"Similarity: 100.0% (lines 170, 577)"
+Potential Duplicate,test_calculate_total_discount_25_threshold_exact <-> test_calculate_total_discount_25_threshold_above,99.7,"Similarity: 99.7% (lines 471, 493)"

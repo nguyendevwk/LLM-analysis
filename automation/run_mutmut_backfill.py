@@ -6,10 +6,10 @@ where fork() is unavailable. Must be executed in WSL/Linux.
 
 Usage (from WSL):
     cd /mnt/c/Users/.../LLM-analysis/automation
-    python3 -m cli_automation.run_mutmut_backfill --results-dir cli_results
-    python3 -m cli_automation.run_mutmut_backfill --results-dir cli_results --fix-invalid
-    python3 -m cli_automation.run_mutmut_backfill --results-dir cli_results --force
-    python3 -m cli_automation.run_mutmut_backfill --results-dir cli_results --run-id 001
+    python3 -m cli_automation.run_mutmut_backfill --results-dir cli_results_v1
+    python3 -m cli_automation.run_mutmut_backfill --results-dir cli_results_v1 --fix-invalid
+    python3 -m cli_automation.run_mutmut_backfill --results-dir cli_results_v1 --force
+    python3 -m cli_automation.run_mutmut_backfill --results-dir cli_results_v1 --run-id 001
 """
 
 import sys
@@ -115,6 +115,32 @@ def run_mutmut_for_experiment(experiment_dir: Path, mutants_dir: Path, force: bo
             logger.info(f"No valid results ({reason}) - will run mutmut")
 
     try:
+        mutmut_command = [sys.executable, '-m', 'mutmut']
+        probe = subprocess.run(
+            [sys.executable, '-c', 'import mutmut'],
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        if probe.returncode != 0:
+            project_python = Path(__file__).resolve().parents[1] / '.venv' / 'bin' / 'python'
+            if not project_python.is_file():
+                logger.error(
+                    "mutmut is unavailable in %s and project .venv",
+                    sys.executable,
+                )
+                return False
+            project_probe = subprocess.run(
+                [str(project_python), '-c', 'import mutmut'],
+                capture_output=True,
+                text=True,
+                timeout=15,
+            )
+            if project_probe.returncode != 0:
+                logger.error("mutmut is not installed in the project interpreter")
+                return False
+            mutmut_command = [str(project_python), '-m', 'mutmut']
+
         test_content = test_file.read_text()
 
         if 'from order_calculator import' in test_content or 'import order_calculator' in test_content:
@@ -183,7 +209,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
             if mutmut_env.get('PYTHONPATH') else src_dir
         )
         run_result = subprocess.run(
-            ['mutmut', 'run'], env=mutmut_env,
+            [*mutmut_command, 'run'], env=mutmut_env,
             cwd=mutants_dir,
             capture_output=True,
             text=True,
@@ -197,7 +223,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
             logger.warning(f"Mutmut run returned code {run_result.returncode}")
 
         results_result = subprocess.run(
-            ['mutmut', 'results'], env=mutmut_env,
+            [*mutmut_command, 'results'], env=mutmut_env,
             cwd=mutants_dir,
             capture_output=True,
             text=True
@@ -543,23 +569,23 @@ def main():
         description='Add mutmut results to existing experiments (supports multi-run structure)',
         epilog='''
 Examples:
-  # Process all experiments in cli_results
-  python3 run_mutmut_backfill.py --results-dir cli_results
+  # Process all experiments in cli_results_v1
+  python3 run_mutmut_backfill.py --results-dir cli_results_v1
 
   # Process only run_001 experiments
-  python3 run_mutmut_backfill.py --results-dir cli_results --run-id 001
+  python3 run_mutmut_backfill.py --results-dir cli_results_v1 --run-id 001
 
   # Process only run_002 and run_003
-  python3 run_mutmut_backfill.py --results-dir cli_results --run-id 002
-  python3 run_mutmut_backfill.py --results-dir cli_results --run-id 003
+  python3 run_mutmut_backfill.py --results-dir cli_results_v1 --run-id 002
+  python3 run_mutmut_backfill.py --results-dir cli_results_v1 --run-id 003
 
   # Process single experiment directory
-  python3 run_mutmut_backfill.py --experiment-dir cli_results/simple_prompting/interface/claude-code-sonnet-4.5/run_001
+  python3 run_mutmut_backfill.py --experiment-dir cli_results_v1/simple_prompting/interface/claude-code-sonnet-4.5/run_001
         ''',
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    parser.add_argument('--results-dir', default='cli_results',
-                        help='Results directory to process (default: cli_results)')
+    parser.add_argument('--results-dir', default='cli_results_v1',
+                        help='Results directory to process (default: cli_results_v1)')
     parser.add_argument('--experiment-dir',
                         help='Process single experiment directory')
     parser.add_argument('--run-id', type=str, default=None,

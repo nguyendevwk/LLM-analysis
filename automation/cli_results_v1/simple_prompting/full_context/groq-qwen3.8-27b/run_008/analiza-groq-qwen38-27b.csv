@@ -1,0 +1,10 @@
+Category,Name,Count,Details
+Tested Method,__init__,14,Called 14 times in tests
+Tested Method,add_item,19,Called 19 times in tests
+Tested Method,remove_item,3,Called 3 times in tests
+Tested Method,get_subtotal,3,Called 3 times in tests
+Tested Method,apply_discount,8,Called 8 times in tests
+Tested Method,calculate_shipping,5,Called 5 times in tests
+Tested Method,calculate_tax,4,Called 4 times in tests
+Tested Method,calculate_total,1,Called 1 times in tests
+Potential Duplicate,test_calculate_shipping_above_threshold <-> test_calculate_shipping_exactly_at_threshold,100.0,"Similarity: 100.0% (lines 175, 181)"

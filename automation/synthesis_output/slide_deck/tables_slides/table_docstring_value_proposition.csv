@@ -1,0 +1,4 @@
+﻿Thông số kiểm định,Interface Only (Baseline),Interface + Docstring,Full Context (Tối đa),Mức tăng từ Docstring (Δ1),Mức tăng từ Full Code (Δ2),Tỷ trọng giá trị Docstring mang lại (%)
+Độ phủ câu lệnh (%),81.8,95.98,96.29,14.18,14.48,97.9
+Độ phủ nhánh (%),52.08,90.22,93.46,38.13,41.38,92.2
+Điểm kiểm thử đột biến (%),34.47,37.89,38.29,3.42,3.81,89.6

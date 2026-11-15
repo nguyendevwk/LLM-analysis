@@ -1,0 +1,1060 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Báo cáo tổng hợp kết quả thí nghiệm LLM</title>
+<style>
+  body { font-family: DejaVu Sans, sans-serif; margin: 24px; color: #222; }
+  h1, h2, h3 { color: #1a3a5c; }
+  table.data-table { border-collapse: collapse; width: 100%; margin: 16px 0; font-size: 13px; }
+  table.data-table th, table.data-table td { border: 1px solid #999; padding: 6px 8px; text-align: center; }
+  table.data-table th { background: #eef3f8; font-weight: bold; }
+  table.data-table tr:nth-child(even) { background: #f7f9fc; }
+  .section { margin: 32px 0; page-break-inside: avoid; }
+  .chart { margin: 16px 0; text-align: center; page-break-inside: avoid; }
+  .chart img { max-width: 100%; border: 1px solid #ddd; }
+  .chart-caption { font-size: 12px; color: #555; margin-top: 4px; }
+  .note { font-size: 12px; color: #666; }
+  .two-col { display: flex; gap: 24px; flex-wrap: wrap; }
+  .two-col > div { flex: 1; min-width: 280px; }
+  .group-title { font-size: 14px; font-weight: bold; color: #1a3a5c; margin-top: 20px; }
+</style>
+</head>
+<body>
+<h1>Báo cáo tổng hợp kết quả thí nghiệm tạo test đơn vị bằng LLM</h1>
+<p class="note">Nguồn dữ liệu: <code>cli_results_v1/</code> và <code>prompts_results/</code>. Tất cả giá trị ở dạng <b>trung bình ± độ lệch chuẩn</b> (mean ± std).</p>
+
+<div class="section">
+  <h2>1. Bảng tóm tắt so sánh</h2>
+  <table class="dataframe data-table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>Strategy</th>
+      <th>Context</th>
+      <th>Model</th>
+      <th>N</th>
+      <th>Tỷ lệ test thành công</th>
+      <th>Độ phủ câu lệnh</th>
+      <th>Độ phủ nhánh</th>
+      <th>Điểm đột biến (mutation score)</th>
+      <th>Tỷ lệ biên dịch thành công</th>
+      <th>Thời gian phản hồi (s)</th>
+      <th>Số phương thức test</th>
+      <th>Tổng số khẳng định</th>
+      <th>Tỷ lệ phương thức được test</th>
+      <th>Điểm chất lượng tổng thể</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Chain Of Thought Prompting</td>
+      <td>Full Context</td>
+      <td>gemini-api-3.1-flash-lite</td>
+      <td>5</td>
+      <td>97.36 ± 1.51 %</td>
+      <td>91.00 ± 2.35 %</td>
+      <td>87.80 ± 3.42 %</td>
+      <td>60.36 ± 5.38 %</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>29.77 ± 13.31 s</td>
+      <td>30.40 ± 2.70 test</td>
+      <td>21.80 ± 4.21 assert</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>75.70 ± 0.89 %</td>
+    </tr>
+    <tr>
+      <td>Chain Of Thought Prompting</td>
+      <td>Full Context</td>
+      <td>gemini-api-3.5-flash-lite</td>
+      <td>4</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>99.00 ± 0.00 %</td>
+      <td>98.00 ± 0.00 %</td>
+      <td>33.02 ± 38.16 %</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>18.75 ± 1.76 s</td>
+      <td>35.00 ± 3.83 test</td>
+      <td>29.25 ± 3.40 assert</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>77.00 ± 0.70 %</td>
+    </tr>
+    <tr>
+      <td>Chain Of Thought Prompting</td>
+      <td>Full Context</td>
+      <td>gemini-api-3.8-flash</td>
+      <td>1</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>99.00 ± 0.00 %</td>
+      <td>98.00 ± 0.00 %</td>
+      <td>77.10 ± 0.00 %</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>93.35 ± 0.00 s</td>
+      <td>71.00 ± 0.00 test</td>
+      <td>52.00 ± 0.00 assert</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>79.30 ± 0.00 %</td>
+    </tr>
+    <tr>
+      <td>Chain Of Thought Prompting</td>
+      <td>Full Context</td>
+      <td>gpt-o3</td>
+      <td>1</td>
+      <td>98.30 ± 0.00 %</td>
+      <td>–</td>
+      <td>–</td>
+      <td>0.00 ± 0.00 %</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>137.94 ± 0.00 s</td>
+      <td>60.00 ± 0.00 test</td>
+      <td>60.00 ± 0.00 assert</td>
+      <td>–</td>
+      <td>–</td>
+    </tr>
+    <tr>
+      <td>Chain Of Thought Prompting</td>
+      <td>Full Context</td>
+      <td>gpt-o4-mini-high</td>
+      <td>1</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>56.00 ± 0.00 %</td>
+      <td>0.00 ± 0.00 %</td>
+      <td>0.00 ± 0.00 %</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>116.03 ± 0.00 s</td>
+      <td>57.00 ± 0.00 test</td>
+      <td>69.00 ± 0.00 assert</td>
+      <td>–</td>
+      <td>–</td>
+    </tr>
+    <tr>
+      <td>Chain Of Thought Prompting</td>
+      <td>Full Context</td>
+      <td>openrouter-nemotron-3-super-120b-a12b</td>
+      <td>10</td>
+      <td>99.17 ± 0.82 %</td>
+      <td>99.67 ± 0.50 %</td>
+      <td>99.33 ± 1.00 %</td>
+      <td>66.33 ± 23.34 %</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>394.32 ± 156.00 s</td>
+      <td>89.60 ± 13.59 test</td>
+      <td>80.10 ± 19.83 assert</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>80.24 ± 4.38 %</td>
+    </tr>
+    <tr>
+      <td>Chain Of Thought Prompting</td>
+      <td>Interface</td>
+      <td>claude-3.7-sonnet</td>
+      <td>1</td>
+      <td>1.50 ± 0.00 %</td>
+      <td>–</td>
+      <td>–</td>
+      <td>0.00 ± 0.00 %</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>147.46 ± 0.00 s</td>
+      <td>65.00 ± 0.00 test</td>
+      <td>87.00 ± 0.00 assert</td>
+      <td>–</td>
+      <td>–</td>
+    </tr>
+    <tr>
+      <td>Chain Of Thought Prompting</td>
+      <td>Interface</td>
+      <td>gemini-api-3.5-flash</td>
+      <td>1</td>
+      <td>84.80 ± 0.00 %</td>
+      <td>77.00 ± 0.00 %</td>
+      <td>70.00 ± 0.00 %</td>
+      <td>61.50 ± 0.00 %</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>50.91 ± 0.00 s</td>
+      <td>33.00 ± 0.00 test</td>
+      <td>34.00 ± 0.00 assert</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>77.70 ± 0.00 %</td>
+    </tr>
+    <tr>
+      <td>Chain Of Thought Prompting</td>
+      <td>Interface</td>
+      <td>gemini-api-3.5-flash-lite</td>
+      <td>8</td>
+      <td>76.70 ± 5.00 %</td>
+      <td>75.60 ± 2.88 %</td>
+      <td>67.80 ± 3.63 %</td>
+      <td>20.88 ± 29.13 %</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>109.03 ± 158.76 s</td>
+      <td>28.38 ± 5.34 test</td>
+      <td>38.62 ± 3.62 assert</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>77.56 ± 1.84 %</td>
+    </tr>
+    <tr>
+      <td>Chain Of Thought Prompting</td>
+      <td>Interface</td>
+      <td>gemini-api-3.7-flash</td>
+      <td>1</td>
+      <td>79.20 ± 0.00 %</td>
+      <td>88.00 ± 0.00 %</td>
+      <td>84.00 ± 0.00 %</td>
+      <td>60.60 ± 0.00 %</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>874.42 ± 0.00 s</td>
+      <td>48.00 ± 0.00 test</td>
+      <td>46.00 ± 0.00 assert</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>76.00 ± 0.00 %</td>
+    </tr>
+    <tr>
+      <td>Chain Of Thought Prompting</td>
+      <td>Interface</td>
+      <td>gpt-o3</td>
+      <td>1</td>
+      <td>66.70 ± 0.00 %</td>
+      <td>–</td>
+      <td>–</td>
+      <td>0.00 ± 0.00 %</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>110.58 ± 0.00 s</td>
+      <td>45.00 ± 0.00 test</td>
+      <td>49.00 ± 0.00 assert</td>
+      <td>–</td>
+      <td>–</td>
+    </tr>
+    <tr>
+      <td>Chain Of Thought Prompting</td>
+      <td>Interface</td>
+      <td>gpt-o4-mini-high</td>
+      <td>1</td>
+      <td>81.50 ± 0.00 %</td>
+      <td>–</td>
+      <td>–</td>
+      <td>0.00 ± 0.00 %</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>112.75 ± 0.00 s</td>
+      <td>65.00 ± 0.00 test</td>
+      <td>100.00 ± 0.00 assert</td>
+      <td>–</td>
+      <td>–</td>
+    </tr>
+    <tr>
+      <td>Chain Of Thought Prompting</td>
+      <td>Interface</td>
+      <td>openrouter-nemotron-3-super-120b-a12b</td>
+      <td>10</td>
+      <td>66.85 ± 24.08 %</td>
+      <td>96.00 ± 1.69 %</td>
+      <td>94.75 ± 2.05 %</td>
+      <td>48.72 ± 36.98 %</td>
+      <td>90.00 ± 31.62 %</td>
+      <td>406.93 ± 161.37 s</td>
+      <td>98.30 ± 14.79 test</td>
+      <td>102.00 ± 39.10 assert</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>69.32 ± 10.21 %</td>
+    </tr>
+    <tr>
+      <td>Chain Of Thought Prompting</td>
+      <td>Interface Docstring</td>
+      <td>claude-3.7-sonnet</td>
+      <td>1</td>
+      <td>95.40 ± 0.00 %</td>
+      <td>–</td>
+      <td>–</td>
+      <td>0.00 ± 0.00 %</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>143.05 ± 0.00 s</td>
+      <td>65.00 ± 0.00 test</td>
+      <td>82.00 ± 0.00 assert</td>
+      <td>–</td>
+      <td>–</td>
+    </tr>
+    <tr>
+      <td>Chain Of Thought Prompting</td>
+      <td>Interface Docstring</td>
+      <td>gemini-api-3.1-flash-lite</td>
+      <td>4</td>
+      <td>98.42 ± 1.82 %</td>
+      <td>90.25 ± 2.06 %</td>
+      <td>87.00 ± 2.45 %</td>
+      <td>60.55 ± 2.90 %</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>28.16 ± 13.24 s</td>
+      <td>32.25 ± 2.87 test</td>
+      <td>19.00 ± 2.94 assert</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>75.72 ± 0.63 %</td>
+    </tr>
+    <tr>
+      <td>Chain Of Thought Prompting</td>
+      <td>Interface Docstring</td>
+      <td>gemini-api-3.5-flash</td>
+      <td>1</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>99.00 ± 0.00 %</td>
+      <td>98.00 ± 0.00 %</td>
+      <td>72.50 ± 0.00 %</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>61.22 ± 0.00 s</td>
+      <td>56.00 ± 0.00 test</td>
+      <td>43.00 ± 0.00 assert</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>77.20 ± 0.00 %</td>
+    </tr>
+    <tr>
+      <td>Chain Of Thought Prompting</td>
+      <td>Interface Docstring</td>
+      <td>gemini-api-3.5-flash-lite</td>
+      <td>2</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>99.00 ± 0.00 %</td>
+      <td>98.00 ± 0.00 %</td>
+      <td>68.35 ± 4.60 %</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>15.80 ± 0.36 s</td>
+      <td>39.00 ± 0.00 test</td>
+      <td>34.00 ± 7.07 assert</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>77.20 ± 1.84 %</td>
+    </tr>
+    <tr>
+      <td>Chain Of Thought Prompting</td>
+      <td>Interface Docstring</td>
+      <td>gpt-o3</td>
+      <td>1</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>56.00 ± 0.00 %</td>
+      <td>0.00 ± 0.00 %</td>
+      <td>0.00 ± 0.00 %</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>136.25 ± 0.00 s</td>
+      <td>59.00 ± 0.00 test</td>
+      <td>65.00 ± 0.00 assert</td>
+      <td>–</td>
+      <td>–</td>
+    </tr>
+    <tr>
+      <td>Chain Of Thought Prompting</td>
+      <td>Interface Docstring</td>
+      <td>gpt-o4-mini-high</td>
+      <td>1</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>56.00 ± 0.00 %</td>
+      <td>0.00 ± 0.00 %</td>
+      <td>0.00 ± 0.00 %</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>85.25 ± 0.00 s</td>
+      <td>56.00 ± 0.00 test</td>
+      <td>69.00 ± 0.00 assert</td>
+      <td>–</td>
+      <td>–</td>
+    </tr>
+    <tr>
+      <td>Chain Of Thought Prompting</td>
+      <td>Interface Docstring</td>
+      <td>openrouter-nemotron-3-super-120b-a12b</td>
+      <td>10</td>
+      <td>98.41 ± 1.25 %</td>
+      <td>99.11 ± 0.33 %</td>
+      <td>98.22 ± 0.67 %</td>
+      <td>66.05 ± 23.32 %</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>368.91 ± 213.55 s</td>
+      <td>91.60 ± 8.91 test</td>
+      <td>78.70 ± 12.26 assert</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>76.97 ± 1.45 %</td>
+    </tr>
+    <tr>
+      <td>Simple Prompting</td>
+      <td>Full Context</td>
+      <td>claude-3.7-sonnet</td>
+      <td>1</td>
+      <td>0.00 ± 0.00 %</td>
+      <td>–</td>
+      <td>–</td>
+      <td>–</td>
+      <td>0.00 ± 0.00 %</td>
+      <td>45.47 ± 0.00 s</td>
+      <td>47.00 ± 0.00 test</td>
+      <td>67.00 ± 0.00 assert</td>
+      <td>–</td>
+      <td>–</td>
+    </tr>
+    <tr>
+      <td>Simple Prompting</td>
+      <td>Full Context</td>
+      <td>gemini-api-3.1-flash-lite</td>
+      <td>10</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>81.40 ± 1.65 %</td>
+      <td>75.20 ± 2.39 %</td>
+      <td>59.66 ± 2.97 %</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>10.40 ± 7.03 s</td>
+      <td>13.30 ± 2.50 test</td>
+      <td>11.40 ± 0.97 assert</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>74.71 ± 2.58 %</td>
+    </tr>
+    <tr>
+      <td>Simple Prompting</td>
+      <td>Full Context</td>
+      <td>gemini-api-3.5-flash</td>
+      <td>1</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>99.00 ± 0.00 %</td>
+      <td>98.00 ± 0.00 %</td>
+      <td>72.50 ± 0.00 %</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>23.96 ± 0.00 s</td>
+      <td>55.00 ± 0.00 test</td>
+      <td>33.00 ± 0.00 assert</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>78.40 ± 0.00 %</td>
+    </tr>
+    <tr>
+      <td>Simple Prompting</td>
+      <td>Full Context</td>
+      <td>gemini-api-3.5-flash-lite</td>
+      <td>3</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>99.00 ± 0.00 %</td>
+      <td>98.00 ± 0.00 %</td>
+      <td>69.13 ± 7.14 %</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>52.48 ± 73.52 s</td>
+      <td>39.00 ± 10.39 test</td>
+      <td>31.00 ± 2.00 assert</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>77.97 ± 1.36 %</td>
+    </tr>
+    <tr>
+      <td>Simple Prompting</td>
+      <td>Full Context</td>
+      <td>gemini-api-3.7-flash</td>
+      <td>1</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>99.00 ± 0.00 %</td>
+      <td>98.00 ± 0.00 %</td>
+      <td>75.20 ± 0.00 %</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>147.97 ± 0.00 s</td>
+      <td>57.00 ± 0.00 test</td>
+      <td>38.00 ± 0.00 assert</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>78.80 ± 0.00 %</td>
+    </tr>
+    <tr>
+      <td>Simple Prompting</td>
+      <td>Full Context</td>
+      <td>gpt-o3</td>
+      <td>1</td>
+      <td>0.00 ± 0.00 %</td>
+      <td>–</td>
+      <td>–</td>
+      <td>–</td>
+      <td>0.00 ± 0.00 %</td>
+      <td>71.54 ± 0.00 s</td>
+      <td>10.00 ± 0.00 test</td>
+      <td>10.00 ± 0.00 assert</td>
+      <td>–</td>
+      <td>–</td>
+    </tr>
+    <tr>
+      <td>Simple Prompting</td>
+      <td>Full Context</td>
+      <td>gpt-o4-mini-high</td>
+      <td>1</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>56.00 ± 0.00 %</td>
+      <td>0.00 ± 0.00 %</td>
+      <td>0.00 ± 0.00 %</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>38.67 ± 0.00 s</td>
+      <td>45.00 ± 0.00 test</td>
+      <td>55.00 ± 0.00 assert</td>
+      <td>–</td>
+      <td>–</td>
+    </tr>
+    <tr>
+      <td>Simple Prompting</td>
+      <td>Full Context</td>
+      <td>groq-gpt-oss-120b</td>
+      <td>7</td>
+      <td>98.76 ± 1.68 %</td>
+      <td>–</td>
+      <td>–</td>
+      <td>0.00 ± 0.00 %</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>5.47 ± 0.25 s</td>
+      <td>43.71 ± 3.55 test</td>
+      <td>25.57 ± 3.36 assert</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>77.11 ± 0.60 %</td>
+    </tr>
+    <tr>
+      <td>Simple Prompting</td>
+      <td>Full Context</td>
+      <td>groq-qwen3.8-27b</td>
+      <td>8</td>
+      <td>37.24 ± 51.40 %</td>
+      <td>–</td>
+      <td>–</td>
+      <td>0.00 ± 0.00 %</td>
+      <td>37.50 ± 51.76 %</td>
+      <td>4.52 ± 0.05 s</td>
+      <td>47.88 ± 0.99 test</td>
+      <td>10.88 ± 15.02 assert</td>
+      <td>62.50 ± 4.49 %</td>
+      <td>58.33 ± 18.39 %</td>
+    </tr>
+    <tr>
+      <td>Simple Prompting</td>
+      <td>Full Context</td>
+      <td>intern-ai-glm-5-3</td>
+      <td>1</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>–</td>
+      <td>–</td>
+      <td>0.00 ± 0.00 %</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>180.10 ± 0.00 s</td>
+      <td>81.00 ± 0.00 test</td>
+      <td>63.00 ± 0.00 assert</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>79.10 ± 0.00 %</td>
+    </tr>
+    <tr>
+      <td>Simple Prompting</td>
+      <td>Full Context</td>
+      <td>intern-ai-qwen3-8-27b</td>
+      <td>10</td>
+      <td>99.89 ± 0.35 %</td>
+      <td>–</td>
+      <td>–</td>
+      <td>0.00 ± 0.00 %</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>111.61 ± 28.63 s</td>
+      <td>110.80 ± 16.62 test</td>
+      <td>71.70 ± 10.52 assert</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>79.04 ± 1.18 %</td>
+    </tr>
+    <tr>
+      <td>Simple Prompting</td>
+      <td>Full Context</td>
+      <td>openrouter-nemotron-3-super-120b-a12b</td>
+      <td>10</td>
+      <td>99.80 ± 0.63 %</td>
+      <td>98.78 ± 0.67 %</td>
+      <td>97.78 ± 0.67 %</td>
+      <td>60.37 ± 21.25 %</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>82.29 ± 30.52 s</td>
+      <td>48.10 ± 4.04 test</td>
+      <td>33.10 ± 3.11 assert</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>78.18 ± 0.52 %</td>
+    </tr>
+    <tr>
+      <td>Simple Prompting</td>
+      <td>Full Context</td>
+      <td>openrouter-nemotron-3.5-lightning</td>
+      <td>1</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>96.00 ± 0.00 %</td>
+      <td>95.00 ± 0.00 %</td>
+      <td>66.10 ± 0.00 %</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>79.77 ± 0.00 s</td>
+      <td>46.00 ± 0.00 test</td>
+      <td>27.00 ± 0.00 assert</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>77.70 ± 0.00 %</td>
+    </tr>
+    <tr>
+      <td>Simple Prompting</td>
+      <td>Full Context</td>
+      <td>openrouter-north-mini-code</td>
+      <td>1</td>
+      <td>0.00 ± 0.00 %</td>
+      <td>–</td>
+      <td>–</td>
+      <td>–</td>
+      <td>0.00 ± 0.00 %</td>
+      <td>53.60 ± 0.00 s</td>
+      <td>10.00 ± 0.00 test</td>
+      <td>0.00 ± 0.00 assert</td>
+      <td>16.70 ± 0.00 %</td>
+      <td>45.00 ± 0.00 %</td>
+    </tr>
+    <tr>
+      <td>Simple Prompting</td>
+      <td>Interface</td>
+      <td>claude-3.7-sonnet</td>
+      <td>1</td>
+      <td>2.20 ± 0.00 %</td>
+      <td>–</td>
+      <td>–</td>
+      <td>0.00 ± 0.00 %</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>45.87 ± 0.00 s</td>
+      <td>45.00 ± 0.00 test</td>
+      <td>58.00 ± 0.00 assert</td>
+      <td>–</td>
+      <td>–</td>
+    </tr>
+    <tr>
+      <td>Simple Prompting</td>
+      <td>Interface</td>
+      <td>gemini-api-3.5-flash</td>
+      <td>1</td>
+      <td>83.30 ± 0.00 %</td>
+      <td>86.00 ± 0.00 %</td>
+      <td>86.00 ± 0.00 %</td>
+      <td>54.10 ± 0.00 %</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>27.43 ± 0.00 s</td>
+      <td>42.00 ± 0.00 test</td>
+      <td>33.00 ± 0.00 assert</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>77.30 ± 0.00 %</td>
+    </tr>
+    <tr>
+      <td>Simple Prompting</td>
+      <td>Interface</td>
+      <td>gemini-api-3.5-flash-lite</td>
+      <td>8</td>
+      <td>80.38 ± 4.95 %</td>
+      <td>84.75 ± 5.47 %</td>
+      <td>79.75 ± 7.21 %</td>
+      <td>26.49 ± 28.45 %</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>44.40 ± 50.07 s</td>
+      <td>40.00 ± 5.34 test</td>
+      <td>37.00 ± 1.69 assert</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>77.28 ± 0.82 %</td>
+    </tr>
+    <tr>
+      <td>Simple Prompting</td>
+      <td>Interface</td>
+      <td>gemini-api-3.7-flash</td>
+      <td>2</td>
+      <td>85.15 ± 0.78 %</td>
+      <td>92.00 ± 0.00 %</td>
+      <td>89.00 ± 0.00 %</td>
+      <td>31.20 ± 44.12 %</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>235.27 ± 18.99 s</td>
+      <td>50.50 ± 2.12 test</td>
+      <td>40.00 ± 2.83 assert</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>78.95 ± 0.49 %</td>
+    </tr>
+    <tr>
+      <td>Simple Prompting</td>
+      <td>Interface</td>
+      <td>gpt-o3</td>
+      <td>1</td>
+      <td>83.30 ± 0.00 %</td>
+      <td>–</td>
+      <td>–</td>
+      <td>0.00 ± 0.00 %</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>40.92 ± 0.00 s</td>
+      <td>24.00 ± 0.00 test</td>
+      <td>26.00 ± 0.00 assert</td>
+      <td>–</td>
+      <td>–</td>
+    </tr>
+    <tr>
+      <td>Simple Prompting</td>
+      <td>Interface</td>
+      <td>gpt-o4-mini-high</td>
+      <td>1</td>
+      <td>84.60 ± 0.00 %</td>
+      <td>–</td>
+      <td>–</td>
+      <td>0.00 ± 0.00 %</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>19.92 ± 0.00 s</td>
+      <td>26.00 ± 0.00 test</td>
+      <td>27.00 ± 0.00 assert</td>
+      <td>–</td>
+      <td>–</td>
+    </tr>
+    <tr>
+      <td>Simple Prompting</td>
+      <td>Interface</td>
+      <td>groq-gpt-oss-120b</td>
+      <td>1</td>
+      <td>82.60 ± 0.00 %</td>
+      <td>–</td>
+      <td>–</td>
+      <td>0.00 ± 0.00 %</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>3.28 ± 0.00 s</td>
+      <td>23.00 ± 0.00 test</td>
+      <td>18.00 ± 0.00 assert</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>77.50 ± 0.00 %</td>
+    </tr>
+    <tr>
+      <td>Simple Prompting</td>
+      <td>Interface</td>
+      <td>openrouter-nemotron-3-super-120b-a12b</td>
+      <td>11</td>
+      <td>79.57 ± 7.64 %</td>
+      <td>77.90 ± 5.63 %</td>
+      <td>72.70 ± 6.15 %</td>
+      <td>54.05 ± 21.49 %</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>92.57 ± 74.18 s</td>
+      <td>32.27 ± 5.31 test</td>
+      <td>35.73 ± 6.00 assert</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>78.38 ± 0.95 %</td>
+    </tr>
+    <tr>
+      <td>Simple Prompting</td>
+      <td>Interface</td>
+      <td>openrouter-nemotron-3-ultra-550b-a55b</td>
+      <td>1</td>
+      <td>85.40 ± 0.00 %</td>
+      <td>82.00 ± 0.00 %</td>
+      <td>80.00 ± 0.00 %</td>
+      <td>55.00 ± 0.00 %</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>141.45 ± 0.00 s</td>
+      <td>41.00 ± 0.00 test</td>
+      <td>39.00 ± 0.00 assert</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>80.20 ± 0.00 %</td>
+    </tr>
+    <tr>
+      <td>Simple Prompting</td>
+      <td>Interface</td>
+      <td>openrouter-nemotron-3.5-lightning</td>
+      <td>1</td>
+      <td>85.70 ± 0.00 %</td>
+      <td>70.00 ± 0.00 %</td>
+      <td>64.00 ± 0.00 %</td>
+      <td>53.20 ± 0.00 %</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>172.21 ± 0.00 s</td>
+      <td>28.00 ± 0.00 test</td>
+      <td>27.00 ± 0.00 assert</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>74.70 ± 0.00 %</td>
+    </tr>
+    <tr>
+      <td>Simple Prompting</td>
+      <td>Interface</td>
+      <td>openrouter-north-mini-code</td>
+      <td>1</td>
+      <td>0.00 ± 0.00 %</td>
+      <td>–</td>
+      <td>–</td>
+      <td>–</td>
+      <td>0.00 ± 0.00 %</td>
+      <td>59.61 ± 0.00 s</td>
+      <td>15.00 ± 0.00 test</td>
+      <td>0.00 ± 0.00 assert</td>
+      <td>83.30 ± 0.00 %</td>
+      <td>45.00 ± 0.00 %</td>
+    </tr>
+    <tr>
+      <td>Simple Prompting</td>
+      <td>Interface Docstring</td>
+      <td>claude-3.7-sonnet</td>
+      <td>1</td>
+      <td>2.20 ± 0.00 %</td>
+      <td>–</td>
+      <td>–</td>
+      <td>0.00 ± 0.00 %</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>67.51 ± 0.00 s</td>
+      <td>45.00 ± 0.00 test</td>
+      <td>73.00 ± 0.00 assert</td>
+      <td>–</td>
+      <td>–</td>
+    </tr>
+    <tr>
+      <td>Simple Prompting</td>
+      <td>Interface Docstring</td>
+      <td>gemini-api-3.1-flash-lite</td>
+      <td>10</td>
+      <td>96.92 ± 3.98 %</td>
+      <td>85.00 ± 0.00 %</td>
+      <td>80.00 ± 0.00 %</td>
+      <td>52.31 ± 19.13 %</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>8.07 ± 8.75 s</td>
+      <td>13.00 ± 0.00 test</td>
+      <td>15.40 ± 0.52 assert</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>73.62 ± 0.17 %</td>
+    </tr>
+    <tr>
+      <td>Simple Prompting</td>
+      <td>Interface Docstring</td>
+      <td>gemini-api-3.5-flash</td>
+      <td>1</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>99.00 ± 0.00 %</td>
+      <td>98.00 ± 0.00 %</td>
+      <td>67.90 ± 0.00 %</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>29.29 ± 0.00 s</td>
+      <td>57.00 ± 0.00 test</td>
+      <td>28.00 ± 0.00 assert</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>74.80 ± 0.00 %</td>
+    </tr>
+    <tr>
+      <td>Simple Prompting</td>
+      <td>Interface Docstring</td>
+      <td>gemini-api-3.5-flash-lite</td>
+      <td>3</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>98.00 ± 1.73 %</td>
+      <td>97.00 ± 1.73 %</td>
+      <td>69.77 ± 6.35 %</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>23.96 ± 30.09 s</td>
+      <td>47.33 ± 7.09 test</td>
+      <td>30.00 ± 3.00 assert</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>76.70 ± 1.44 %</td>
+    </tr>
+    <tr>
+      <td>Simple Prompting</td>
+      <td>Interface Docstring</td>
+      <td>gpt-o3</td>
+      <td>1</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>56.00 ± 0.00 %</td>
+      <td>0.00 ± 0.00 %</td>
+      <td>0.00 ± 0.00 %</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>34.96 ± 0.00 s</td>
+      <td>36.00 ± 0.00 test</td>
+      <td>39.00 ± 0.00 assert</td>
+      <td>–</td>
+      <td>–</td>
+    </tr>
+    <tr>
+      <td>Simple Prompting</td>
+      <td>Interface Docstring</td>
+      <td>gpt-o4-mini-high</td>
+      <td>1</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>56.00 ± 0.00 %</td>
+      <td>0.00 ± 0.00 %</td>
+      <td>0.00 ± 0.00 %</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>29.19 ± 0.00 s</td>
+      <td>46.00 ± 0.00 test</td>
+      <td>46.00 ± 0.00 assert</td>
+      <td>–</td>
+      <td>–</td>
+    </tr>
+    <tr>
+      <td>Simple Prompting</td>
+      <td>Interface Docstring</td>
+      <td>groq-gpt-oss-120b</td>
+      <td>1</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>–</td>
+      <td>–</td>
+      <td>0.00 ± 0.00 %</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>5.85 ± 0.00 s</td>
+      <td>42.00 ± 0.00 test</td>
+      <td>25.00 ± 0.00 assert</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>76.20 ± 0.00 %</td>
+    </tr>
+    <tr>
+      <td>Simple Prompting</td>
+      <td>Interface Docstring</td>
+      <td>openrouter-nemotron-3-super-120b-a12b</td>
+      <td>10</td>
+      <td>99.80 ± 0.63 %</td>
+      <td>99.00 ± 0.00 %</td>
+      <td>98.00 ± 0.00 %</td>
+      <td>60.93 ± 21.44 %</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>80.35 ± 37.28 s</td>
+      <td>43.60 ± 5.99 test</td>
+      <td>32.00 ± 3.68 assert</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>76.94 ± 0.40 %</td>
+    </tr>
+    <tr>
+      <td>Simple Prompting</td>
+      <td>Interface Docstring</td>
+      <td>openrouter-nemotron-3.5-lightning</td>
+      <td>1</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>96.00 ± 0.00 %</td>
+      <td>95.00 ± 0.00 %</td>
+      <td>64.20 ± 0.00 %</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>125.10 ± 0.00 s</td>
+      <td>46.00 ± 0.00 test</td>
+      <td>26.00 ± 0.00 assert</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>77.60 ± 0.00 %</td>
+    </tr>
+    <tr>
+      <td>Chain Of Thought Prompting</td>
+      <td>Full Context</td>
+      <td>TRUNG BÌNH TẤT CẢ MÔ HÌNH</td>
+      <td>22</td>
+      <td>98.94 ± 1.30 %</td>
+      <td>95.15 ± 10.00 %</td>
+      <td>91.15 ± 22.07 %</td>
+      <td>53.38 ± 30.26 %</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>205.20 ± 206.48 s</td>
+      <td>62.55 ± 28.76 test</td>
+      <td>54.91 ± 29.55 assert</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>78.41 ± 3.67 %</td>
+    </tr>
+    <tr>
+      <td>Chain Of Thought Prompting</td>
+      <td>Interface</td>
+      <td>TRUNG BÌNH TẤT CẢ MÔ HÌNH</td>
+      <td>23</td>
+      <td>69.38 ± 22.34 %</td>
+      <td>87.40 ± 10.18 %</td>
+      <td>83.40 ± 13.39 %</td>
+      <td>33.07 ± 34.59 %</td>
+      <td>95.65 ± 20.85 %</td>
+      <td>271.20 ± 241.59 s</td>
+      <td>63.74 ± 34.16 test</td>
+      <td>71.52 ± 40.12 assert</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>73.37 ± 8.25 %</td>
+    </tr>
+    <tr>
+      <td>Chain Of Thought Prompting</td>
+      <td>Interface Docstring</td>
+      <td>TRUNG BÌNH TẤT CẢ MÔ HÌNH</td>
+      <td>20</td>
+      <td>98.66 ± 1.53 %</td>
+      <td>92.33 ± 13.76 %</td>
+      <td>84.78 ± 31.22 %</td>
+      <td>55.59 ± 29.03 %</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>212.96 ± 219.88 s</td>
+      <td>67.95 ± 26.64 test</td>
+      <td>59.50 ± 27.02 assert</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>76.72 ± 1.34 %</td>
+    </tr>
+    <tr>
+      <td>Simple Prompting</td>
+      <td>Full Context</td>
+      <td>TRUNG BÌNH TẤT CẢ MÔ HÌNH</td>
+      <td>56</td>
+      <td>85.47 ± 35.22 %</td>
+      <td>90.39 ± 11.05 %</td>
+      <td>85.27 ± 20.64 %</td>
+      <td>33.78 ± 32.98 %</td>
+      <td>85.71 ± 35.31 %</td>
+      <td>52.07 ± 52.22 s</td>
+      <td>51.41 ± 32.56 test</td>
+      <td>32.39 ± 23.70 assert</td>
+      <td>92.77 ± 17.30 %</td>
+      <td>73.94 ± 10.64 %</td>
+    </tr>
+    <tr>
+      <td>Simple Prompting</td>
+      <td>Interface</td>
+      <td>TRUNG BÌNH TẤT CẢ MÔ HÌNH</td>
+      <td>29</td>
+      <td>75.71 ± 21.42 %</td>
+      <td>81.70 ± 7.01 %</td>
+      <td>77.09 ± 8.25 %</td>
+      <td>36.83 ± 29.02 %</td>
+      <td>96.55 ± 18.57 %</td>
+      <td>81.19 ± 75.74 s</td>
+      <td>35.17 ± 8.92 test</td>
+      <td>34.38 ± 9.89 assert</td>
+      <td>99.36 ± 3.27 %</td>
+      <td>76.65 ± 6.57 %</td>
+    </tr>
+    <tr>
+      <td>Simple Prompting</td>
+      <td>Interface Docstring</td>
+      <td>TRUNG BÌNH TẤT CẢ MÔ HÌNH</td>
+      <td>29</td>
+      <td>95.50 ± 18.14 %</td>
+      <td>90.08 ± 12.01 %</td>
+      <td>83.31 ± 25.96 %</td>
+      <td>50.82 ± 27.01 %</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>43.03 ± 42.85 s</td>
+      <td>33.79 ± 16.14 test</td>
+      <td>27.62 ± 12.51 assert</td>
+      <td>100.00 ± 0.00 %</td>
+      <td>75.55 ± 1.69 %</td>
+    </tr>
+  </tbody>
+</table>
+  <p class="note">Cột "N" là số lần chạy được tổng hợp. "TRUNG BÌNH TẤT CẢ MÔ HÌNH" là tổng hợp theo (strategy, context) toàn bộ mô hình.</p>
+</div>
+
+<div class="section">
+  <h2>2. Thang đánh giá (dùng cho phân tích paper)</h2>
+  
+    <h3>Thang đánh giá kết quả</h3>
+    <table class="data-table">
+      <tr><th>Chỉ số (tỷ lệ %)</th><th>Xuất sắc</th><th>Tốt</th><th>Khá</th><th>Yếu</th></tr>
+      <tr><td>Độ phủ / Chất lượng / Thành công</td><td>≥ 90</td><td>80–89</td><td>70–79</td><td>&lt; 70</td></tr>
+      <tr><td>Độ phủ nhánh (branch coverage)</td><td>≥ 80</td><td>60–79</td><td>40–59</td><td>&lt; 40</td></tr>
+      <tr><td>Điểm đột biến (mutation score)</td><td>≥ 50</td><td>30–49</td><td>15–29</td><td>&lt; 15</td></tr>
+      <tr><td>Thời gian phản hồi</td><td>&lt; 30s</td><td>30–60s</td><td>60–120s</td><td>&gt; 120s</td></tr>
+    </table>
+    
+</div>
+
+<div class="section two-col">
+  <h2>3. Biểu đồ số liệu (gộp layout, viết tắt tên)</h2>
+  <div class="group-title">3a. So sánh mô hình theo nhóm — mỗi figure là 1 chỉ số, lưới các nhóm (strategy × context)</div>
+  <div class="chart"><img src="charts/grid_branch_coverage.png" alt="grid_branch_coverage" style="max-width:320px;"><p class="chart-caption">grid_branch_coverage</p></div>
+<div class="chart"><img src="charts/grid_mutation_score.png" alt="grid_mutation_score" style="max-width:320px;"><p class="chart-caption">grid_mutation_score</p></div>
+<div class="chart"><img src="charts/grid_overall_quality_score.png" alt="grid_overall_quality_score" style="max-width:320px;"><p class="chart-caption">grid_overall_quality_score</p></div>
+<div class="chart"><img src="charts/grid_statement_coverage.png" alt="grid_statement_coverage" style="max-width:320px;"><p class="chart-caption">grid_statement_coverage</p></div>
+<div class="chart"><img src="charts/grid_test_success_rate.png" alt="grid_test_success_rate" style="max-width:320px;"><p class="chart-caption">grid_test_success_rate</p></div>
+
+  <div class="group-title">3b. Top 14 mô hình — 5 chỉ số trong 1 figure</div>
+  <div class="chart"><img src="charts/grid_top14.png" alt="grid_top14" style="max-width:320px;"><p class="chart-caption">grid_top14</p></div>
+
+  <div class="group-title">3c. Chiến lược × ngữ cảnh (grouped bar, 5 chỉ số)</div>
+  <div class="chart"><img src="charts/grouped_strategy_context.png" alt="grouped_strategy_context" style="max-width:320px;"><p class="chart-caption">grouped_strategy_context</p></div>
+
+  <div class="group-title">3d. Boxplot phân phối — 5 chỉ số trong 1 figure</div>
+  <div class="chart"><img src="charts/grid_boxplot.png" alt="grid_boxplot" style="max-width:320px;"><p class="chart-caption">grid_boxplot</p></div>
+
+</div>
+
+<div class="section">
+  <h2>4. Tệp xuất ra</h2>
+  <ul>
+    <li><code>aggregation_output/aggregated_raw.csv</code> — dữ liệu thô từng lần chạy</li>
+    <li><code>aggregation_output/summary_by_model.csv</code> — mean ± std theo (strategy, context, model)</li>
+    <li><code>aggregation_output/summary_by_strategy_context.csv</code> — mean ± std theo (strategy, context)</li>
+    <li><code>aggregation_output/tables/latex_table.tex</code> — bảng LaTeX chèn trực tiếp vào paper</li>
+    <li><code>aggregation_output/tables/markdown_table.md</code> — bảng Markdown</li>
+    <li><code>aggregation_output/charts/</code> — tất cả biểu đồ PNG</li>
+  </ul>
+</div>
+</body>
+</html>

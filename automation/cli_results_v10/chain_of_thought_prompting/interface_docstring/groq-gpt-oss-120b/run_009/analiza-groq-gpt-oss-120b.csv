@@ -1,0 +1,15 @@
+Category,Name,Count,Details
+Tested Method,__init__,20,Called 20 times in tests
+Tested Method,add_item,89,Called 89 times in tests
+Tested Method,remove_item,13,Called 13 times in tests
+Tested Method,get_subtotal,12,Called 12 times in tests
+Tested Method,apply_discount,14,Called 14 times in tests
+Tested Method,calculate_shipping,11,Called 11 times in tests
+Tested Method,calculate_tax,8,Called 8 times in tests
+Tested Method,calculate_total,22,Called 22 times in tests
+Tested Method,total_items,13,Called 13 times in tests
+Tested Method,list_items,11,Called 11 times in tests
+Tested Method,is_empty,8,Called 8 times in tests
+Tested Method,clear_order,8,Called 8 times in tests
+Potential Duplicate,test_add_item_whitespace_name <-> test_list_items_whitespace_name,100.0,"Similarity: 100.0% (lines 132, 433)"
+Potential Duplicate,test_calculate_total_custom_parameters <-> test_integration_custom_configuration,100.0,"Similarity: 100.0% (lines 329, 474)"

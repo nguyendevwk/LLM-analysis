@@ -1,0 +1,18 @@
+Category,Name,Count,Details
+Tested Method,__init__,120,Called 120 times in tests
+Tested Method,add_item,78,Called 78 times in tests
+Tested Method,remove_item,13,Called 13 times in tests
+Tested Method,get_subtotal,34,Called 34 times in tests
+Tested Method,apply_discount,17,Called 17 times in tests
+Tested Method,calculate_shipping,30,Called 30 times in tests
+Tested Method,calculate_tax,22,Called 22 times in tests
+Tested Method,calculate_total,18,Called 18 times in tests
+Tested Method,total_items,23,Called 23 times in tests
+Tested Method,list_items,13,Called 13 times in tests
+Tested Method,is_empty,13,Called 13 times in tests
+Tested Method,clear_order,7,Called 7 times in tests
+Potential Duplicate,test_add_item_non_string_name <-> test_list_items_non_string_name,100.0,"Similarity: 100.0% (lines 120, 595)"
+Potential Duplicate,test_add_item_subtotal_consistency <-> test_get_subtotal_multiple_items,100.0,"Similarity: 100.0% (lines 145, 217)"
+Potential Duplicate,test_calculate_shipping_below_threshold <-> test_calculate_shipping_negative_subtotal,99.6,"Similarity: 99.6% (lines 325, 342)"
+Potential Duplicate,test_calculate_shipping_below_threshold <-> test_calculate_shipping_zero_subtotal,99.6,"Similarity: 99.6% (lines 325, 346)"
+Potential Duplicate,test_calculate_total_discount_negative <-> test_calculate_total_exception_propagation,100.0,"Similarity: 100.0% (lines 452, 495)"

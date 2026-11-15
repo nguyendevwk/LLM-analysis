@@ -1,0 +1,13 @@
+Category,Name,Count,Details
+Tested Method,__init__,80,Called 80 times in tests
+Tested Method,add_item,48,Called 48 times in tests
+Tested Method,remove_item,8,Called 8 times in tests
+Tested Method,get_subtotal,5,Called 5 times in tests
+Tested Method,apply_discount,10,Called 10 times in tests
+Tested Method,calculate_shipping,8,Called 8 times in tests
+Tested Method,calculate_tax,7,Called 7 times in tests
+Tested Method,calculate_total,10,Called 10 times in tests
+Tested Method,total_items,5,Called 5 times in tests
+Tested Method,list_items,7,Called 7 times in tests
+Tested Method,is_empty,8,Called 8 times in tests
+Tested Method,clear_order,5,Called 5 times in tests

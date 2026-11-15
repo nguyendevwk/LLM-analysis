@@ -1,0 +1,22 @@
+Category,Name,Count,Details
+Tested Method,__init__,15,Called 15 times in tests
+Tested Method,add_item,70,Called 70 times in tests
+Tested Method,remove_item,8,Called 8 times in tests
+Tested Method,get_subtotal,4,Called 4 times in tests
+Tested Method,apply_discount,8,Called 8 times in tests
+Tested Method,calculate_shipping,5,Called 5 times in tests
+Tested Method,calculate_tax,4,Called 4 times in tests
+Tested Method,calculate_total,14,Called 14 times in tests
+Tested Method,total_items,11,Called 11 times in tests
+Tested Method,list_items,9,Called 9 times in tests
+Tested Method,is_empty,8,Called 8 times in tests
+Tested Method,clear_order,9,Called 9 times in tests
+Potential Duplicate,test_add_item_name_whitespace <-> test_misc_add_item_name_whitespace,100.0,"Similarity: 100.0% (lines 103, 379)"
+Potential Duplicate,test_add_item_price_as_int <-> test_misc_add_item_price_as_int,100.0,"Similarity: 100.0% (lines 107, 383)"
+Potential Duplicate,test_add_item_quantity_as_float <-> test_misc_add_item_quantity_as_float,100.0,"Similarity: 100.0% (lines 111, 387)"
+Potential Duplicate,test_remove_item_case_sensitivity <-> test_misc_remove_item_case_sensitivity,100.0,"Similarity: 100.0% (lines 135, 391)"
+Potential Duplicate,test_total_items_after_clear <-> test_clear_order_total_items,100.0,"Similarity: 100.0% (lines 304, 323)"
+Potential Duplicate,test_clear_order_resets_items <-> test_clear_order_is_empty,100.0,"Similarity: 100.0% (lines 313, 318)"
+Potential Duplicate,test_clear_order_resets_items <-> test_is_empty_after_clear,100.0,"Similarity: 100.0% (lines 313, 366)"
+Potential Duplicate,test_clear_order_is_empty <-> test_is_empty_after_clear,100.0,"Similarity: 100.0% (lines 318, 366)"
+Potential Duplicate,test_clear_order_list_items <-> test_list_items_after_clear,100.0,"Similarity: 100.0% (lines 328, 348)"

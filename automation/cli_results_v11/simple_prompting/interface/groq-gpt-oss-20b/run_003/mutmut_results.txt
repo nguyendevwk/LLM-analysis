@@ -1,0 +1,18 @@
+To apply a mutant on disk:
+    mutmut apply <id>
+
+To show a mutant:
+    mutmut show <id>
+
+
+Suspicious 🤔 (1)
+
+---- src/order_calculator.py (1) ----
+
+86
+
+Survived 🙁 (53)
+
+---- src/order_calculator.py (53) ----
+
+2, 5, 7, 9, 12-21, 26, 28, 30, 32, 34, 37-38, 40, 45, 53-60, 62, 67, 69, 73-79, 81, 83-84, 87-90, 94, 96-98, 106

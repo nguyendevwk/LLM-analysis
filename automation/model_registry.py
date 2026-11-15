@@ -30,10 +30,11 @@ https://ai.google.dev/gemini-api/docs/models.
 from dataclasses import dataclass
 from typing import Callable, Dict, List, Optional, Tuple
 
-GROUP_GEMINI = "Gemini API (free tier — GEMINI_API_KEY)"
-GROUP_OPENROUTER = "OpenRouter (free ':free' models — OPENROUTER_API_KEY)"
-GROUP_GROQ = "Groq (free developer tier — GROQ_API_KEY)"
-GROUP_LOCAL = "Local OpenAI-compatible server (LOCAL_API_KEY optional)"
+GROUP_GEMINI = "Gemini API"
+GROUP_OPENROUTER = "OpenRouter"
+GROUP_GROQ = "Groq"
+GROUP_LOCAL = "Local OpenAI-compatible server"
+GROUP_INTERNAI = "InternAI / Discovery API"
 
 
 @dataclass(frozen=True)
@@ -52,6 +53,8 @@ REGISTRY: Dict[str, ModelSpec] = {
     # --- Google Gemini API (AI Studio free tier, verified no billing) ---
     "gemini-api-3.8-flash": ModelSpec("gemini", "gemini-3.8-flash", GROUP_GEMINI, "Gemini 3.8 Flash"),
     "gemini-api-3.7-flash": ModelSpec("gemini", "gemini-3.7-flash", GROUP_GEMINI, "Gemini 3.7 Flash"),
+    "gemini-api-3.6-flash": ModelSpec("gemini", "gemini-3.6-flash", GROUP_GEMINI, "Gemini 3.6 Flash"),
+    "gemini-api-3.1-flash-lite": ModelSpec("gemini", "gemini-3.1-flash-lite", GROUP_GEMINI, "Gemini 3.1 Flash-Lite"),
     "gemini-api-3.5-flash": ModelSpec("gemini", "gemini-3.5-flash", GROUP_GEMINI, "Gemini 3.5 Flash"),
     "gemini-api-3.5-flash-lite": ModelSpec("gemini", "gemini-3.5-flash-lite", GROUP_GEMINI, "Gemini 3.5 Flash-Lite"),
 
@@ -76,6 +79,11 @@ REGISTRY: Dict[str, ModelSpec] = {
 
     # --- Local servers (Ollama / LM Studio / vLLM expose /v1) ---
     "local-llama-3.1-8b": ModelSpec("local", "llama3.1:8b", GROUP_LOCAL, "Llama 3.1 8B (local)", notes="override LOCAL_BASE_URL if needed"),
+
+    # --- InternAI / Discovery API (OpenAI-compatible) ---
+    "intern-ai-glm-5-3": ModelSpec("intern-ai", "glm-5.3", GROUP_INTERNAI, "GLM 5.3"),
+    "intern-ai-qwen3-8-27b": ModelSpec("intern-ai", "qwen3.8-27b", GROUP_INTERNAI, "Qwen3.8 27B"),
+    "intern-ai-deepseek-v4-flash-0731": ModelSpec("intern-ai", "deepseek-v4-flash-0731", GROUP_INTERNAI, "DeepSeek V4 Flash 0731"),
 }
 
 # ---------------------------------------------------------------------------
@@ -96,13 +104,14 @@ REGISTRY: Dict[str, ModelSpec] = {
 
 
 # Providers usable with ad-hoc "provider:model-id" syntax
-PROVIDER_SYNTAX: Tuple[str, ...] = ("openrouter", "groq", "gemini", "local")
+PROVIDER_SYNTAX: Tuple[str, ...] = ("openrouter", "groq", "gemini", "local", "intern-ai")
 
 PROVIDER_GROUPS = {
     "openrouter": GROUP_OPENROUTER,
     "groq": GROUP_GROQ,
     "gemini": GROUP_GEMINI,
     "local": GROUP_LOCAL,
+    "intern-ai": GROUP_INTERNAI,
 }
 
 

@@ -1,0 +1,120 @@
+{
+  "compilation": {
+    "compilation_success": false,
+    "execution_success": false,
+    "tests_run": 0,
+    "tests_passed": 0,
+    "tests_failed": 0,
+    "test_errors": [],
+    "compilation_errors": [
+      "  File \"tests.py\", line 208\n    expected_subtotal = \n                        ^\nSyntaxError: invalid syntax\n"
+    ]
+  },
+  "coverage": null,
+  "mutation": null,
+  "scenarios": {
+    "total_test_methods": 49,
+    "tested_methods": {
+      "methods_tested": [
+        "__init__",
+        "add_item",
+        "remove_item",
+        "get_subtotal",
+        "apply_discount",
+        "calculate_shipping",
+        "calculate_tax",
+        "calculate_total"
+      ],
+      "methods_tested_count": 8,
+      "total_methods": 12,
+      "method_coverage_rate": 66.7,
+      "method_call_counts": {
+        "__init__": 14,
+        "add_item": 19,
+        "remove_item": 3,
+        "get_subtotal": 3,
+        "apply_discount": 8,
+        "calculate_shipping": 5,
+        "calculate_tax": 4,
+        "calculate_total": 1
+      }
+    },
+    "duplicates": {
+      "total_tests_analyzed": 0,
+      "duplicate_pairs_found": 0,
+      "unique_duplicate_tests": 0,
+      "duplicates": [],
+      "error": "invalid syntax (<unknown>, line 208)"
+    },
+    "assertion_quality": {
+      "total_assertions": 0,
+      "weak_assertions_count": 0,
+      "strong_assertions_count": 0,
+      "weak_assertions": [],
+      "assertions_without_message": 0,
+      "assertion_quality_score": 0
+    },
+    "exception_quality": {
+      "exception_tests_count": 0,
+      "tests_with_message_check": 0,
+      "generic_exception_usage": 0,
+      "exception_tests": [],
+      "exception_quality_score": 0
+    },
+    "independence": {
+      "tests_modifying_self_count": 0,
+      "tests_with_class_variables_count": 0,
+      "tests_modifying_self": [],
+      "independence_score": 100,
+      "is_independent": true
+    },
+    "naming_quality": {
+      "total_tests": 0,
+      "average_name_length": 0,
+      "short_names_count": 0,
+      "descriptive_names_count": 0,
+      "naming_patterns": {},
+      "naming_quality_score": 0,
+      "short_names": []
+    },
+    "code_smells": {
+      "smells": {},
+      "smell_score": 100,
+      "total_smells_found": 0
+    }
+  },
+  "summary": {
+    "model": "groq-qwen3.8-27b",
+    "strategy": "simple_prompting",
+    "context_type": "full_context",
+    "timestamp": "2026-10-16T20:08:28.131641",
+    "response_time": 4.540483236312866,
+    "compilation_success_rate": 0,
+    "execution_success_rate": 0,
+    "tests_generated": 0,
+    "tests_passed": 0,
+    "tests_failed": 0,
+    "test_success_rate": 0,
+    "total_test_methods": 49,
+    "total_assertions": 0,
+    "tests_with_error_handling": 0,
+    "methods_tested_count": 8,
+    "total_methods": 12,
+    "method_coverage_rate": 66.7,
+    "duplicate_tests_found": 0,
+    "avg_assertions_per_test": 0.0,
+    "assertion_quality_score": 0,
+    "weak_assertions_count": 0,
+    "strong_assertions_count": 0,
+    "exception_quality_score": 0,
+    "exception_tests_count": 0,
+    "tests_with_message_check": 0,
+    "independence_score": 100,
+    "is_independent": true,
+    "naming_quality_score": 0,
+    "average_name_length": 0,
+    "smell_score": 100,
+    "total_smells_found": 0,
+    "overall_quality_score": 45.0
+  }
+}

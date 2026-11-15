@@ -1,0 +1,23 @@
+Category,Name,Count,Details
+Tested Method,__init__,93,Called 93 times in tests
+Tested Method,add_item,60,Called 60 times in tests
+Tested Method,remove_item,6,Called 6 times in tests
+Tested Method,get_subtotal,5,Called 5 times in tests
+Tested Method,apply_discount,12,Called 12 times in tests
+Tested Method,calculate_shipping,10,Called 10 times in tests
+Tested Method,calculate_tax,7,Called 7 times in tests
+Tested Method,calculate_total,17,Called 17 times in tests
+Tested Method,total_items,10,Called 10 times in tests
+Tested Method,list_items,5,Called 5 times in tests
+Tested Method,is_empty,7,Called 7 times in tests
+Tested Method,clear_order,9,Called 9 times in tests
+Potential Duplicate,test_add_item_non_positive_price <-> test_edge_add_item_price_zero,100.0,"Similarity: 100.0% (lines 101, 516)"
+Potential Duplicate,test_add_item_price_not_float <-> test_type_check_add_item_price_string,100.0,"Similarity: 100.0% (lines 125, 551)"
+Potential Duplicate,test_add_item_quantity_not_int <-> test_type_check_add_item_quantity_float,100.0,"Similarity: 100.0% (lines 131, 557)"
+Potential Duplicate,test_add_item_default_quantity <-> test_edge_add_item_default_quantity,100.0,"Similarity: 100.0% (lines 137, 510)"
+Potential Duplicate,test_remove_item_normal <-> test_is_empty_after_removing_only_item,100.0,"Similarity: 100.0% (lines 149, 466)"
+Potential Duplicate,test_get_subtotal_after_clear <-> test_clear_order_get_subtotal,100.0,"Similarity: 100.0% (lines 190, 426)"
+Potential Duplicate,test_calculate_shipping_exact_threshold <-> test_edge_calculate_shipping_exact_threshold,100.0,"Similarity: 100.0% (lines 258, 534)"
+Potential Duplicate,test_calculate_tax_zero_amount <-> test_edge_calculate_tax_zero_amount,100.0,"Similarity: 100.0% (lines 289, 539)"
+Potential Duplicate,test_calculate_total_non_numeric_discount <-> test_type_check_calculate_total_discount_string,100.0,"Similarity: 100.0% (lines 337, 575)"
+Potential Duplicate,test_total_items_after_clear <-> test_clear_order_total_items,100.0,"Similarity: 100.0% (lines 398, 412)"

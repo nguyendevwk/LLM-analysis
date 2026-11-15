@@ -53,12 +53,14 @@ LLM-analysis/
 │   │   └── gemini_cli_client.py       # Gemini CLI client
 │   ├── model_registry.py              # Free/open model catalog + name resolution
 │   ├── configs/                       # Batch experiment configs (JSON)
-│   ├── data/                          # Aggregated experiment data
-│   │   ├── raw_data.csv               # 720 experiment results
-│   │   └── summary_by_config.csv      # Per-configuration summary
-│   ├── cli_results/                   # Raw results (720 experiment directories)
-│   │   ├── simple_prompting/
-│   │   └── chain_of_thought_prompting/
+│   ├── cli_results_v3/                # Baseline 720 experiments (Claude Opus/Sonnet 4.5, Gemini 3 Flash/Pro)
+│   ├── cli_results_v1/                # Open-source runs (Nemotron 3 Super 120B)
+│   ├── cli_results_v10/               # Open-source runs (Groq GPT-OSS 120B)
+│   ├── cli_results_v11/               # Compact model runs (Groq GPT-OSS 20B)
+│   ├── synthesis_output/              # Multi-panel charts, CSV metrics & docx/slide markdown
+│   ├── docs/                          # Presentation PPTX and Paper DOCX deliverables
+│   ├── tools/                         # Automated report metric injectors & aggregators
+│   ├── generate_synthesis_report.py   # Synthesis & multi-panel chart generation pipeline
 │   ├── cli_experiment_runner.py       # Experiment orchestrator
 │   ├── generate_batch_config.py       # Batch matrix generator
 │   ├── experiment_runner.py           # Analysis pipeline
@@ -176,7 +178,13 @@ tools required. Only a key in `.env` is needed:
 Curated free models live in `automation/model_registry.py` (add one line to
 extend). Local open-weight servers (Ollama / LM Studio / vLLM) work through
 the `local` provider and `LOCAL_BASE_URL`. Request settings can be tuned via
-`LLM_TEMPERATURE`, `LLM_MAX_TOKENS`, `LLM_TIMEOUT` and `LLM_MAX_RETRIES`.
+`LLM_TEMPERATURE`, `LLM_MAX_TOKENS`, `LLM_RECOVERY_MAX_TOKENS`,
+`LLM_TIMEOUT` and `LLM_MAX_RETRIES`. `LLM_MAX_TOKENS` is not set by default:
+the client omits `max_tokens` and lets the provider choose the completion
+limit. `LLM_RECOVERY_MAX_TOKENS` controls the retry used when a
+reasoning-capable model returns no visible content and is also unset by
+default. Set either variable to a positive value when a provider requires an
+explicit completion limit.
 
 ### Run Single Experiment
 
@@ -226,23 +234,14 @@ Context level impact on statement coverage: Interface (79.3%) -> Interface+Docst
 - Setup is fully managed by `uv` (`pyproject.toml` + `uv.lock`); Python is pinned to 3.10–3.12 because the mutation pipeline uses mutmut 2.x
 - Free-provider requests retry automatically with backoff on rate limits (429)
 - Mutation testing requires `fork()` support (Linux/WSL only, not native Windows)
-- All 720 experiments are stored in `automation/cli_results/`
-- Aggregated data is available in `automation/data/`
-
-
-
-  curl https://openrouter.ai/api/v1/chat/completions \
-    -H "Content-Type: application/json" \
-    -H "Authorization: Bearer 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" \
-    -d '{
-    "model": "nvidia/nemotron-3.5-lightning:free",
-    "messages": [
-      {
-        "role": "user",
-        "content": "How many r`s are in the word `strawberry?`"
-      }
-    ],
-    "reasoning": {
-      "enabled": true
-    }
-}'
+- All 720 baseline experiments are stored in `automation/cli_results_v3/`
+- Additional frontier & open-weight model runs are stored in:
+  - `automation/cli_results_v1/`: Nemotron 3 Super 120B
+  - `automation/cli_results_v10/`: Groq GPT-OSS 120B
+  - `automation/cli_results_v11/`: Groq GPT-OSS 20B
+- Aggregated synthesis datasets, charts, and report templates are in `automation/synthesis_output/`
+- Academic paper and presentation files are in `automation/docs/`
+- To regenerate the full synthesis reports and SVG charts:
+  ```bash
+  python3 automation/generate_synthesis_report.py
+  ```

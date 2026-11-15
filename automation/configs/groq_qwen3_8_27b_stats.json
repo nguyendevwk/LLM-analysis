@@ -1,0 +1,16 @@
+{
+  "description": "Groq qwen3.8-27b stats: 10 runs simple_prompting/full_context (dev plan - conservative delay)",
+  "delay_between_experiments": 20,
+  "experiments": [
+    {"model": "groq-qwen3.8-27b", "strategy": "simple_prompting", "context": "full_context"},
+    {"model": "groq-qwen3.8-27b", "strategy": "simple_prompting", "context": "full_context"},
+    {"model": "groq-qwen3.8-27b", "strategy": "simple_prompting", "context": "full_context"},
+    {"model": "groq-qwen3.8-27b", "strategy": "simple_prompting", "context": "full_context"},
+    {"model": "groq-qwen3.8-27b", "strategy": "simple_prompting", "context": "full_context"},
+    {"model": "groq-qwen3.8-27b", "strategy": "simple_prompting", "context": "full_context"},
+    {"model": "groq-qwen3.8-27b", "strategy": "simple_prompting", "context": "full_context"},
+    {"model": "groq-qwen3.8-27b", "strategy": "simple_prompting", "context": "full_context"},
+    {"model": "groq-qwen3.8-27b", "strategy": "simple_prompting", "context": "full_context"},
+    {"model": "groq-qwen3.8-27b", "strategy": "simple_prompting", "context": "full_context"}
+  ]
+}

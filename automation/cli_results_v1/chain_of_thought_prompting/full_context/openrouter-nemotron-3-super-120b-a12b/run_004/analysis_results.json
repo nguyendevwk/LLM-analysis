@@ -1,0 +1,321 @@
+{
+  "compilation": {
+    "compilation_success": true,
+    "execution_success": true,
+    "tests_run": 79,
+    "tests_passed": 79,
+    "tests_failed": 0,
+    "test_errors": [],
+    "compilation_errors": []
+  },
+  "coverage": {
+    "statements": 93,
+    "missing": 0,
+    "coverage_percent": 100,
+    "branch_coverage_percent": 100,
+    "partial_coverage": 0
+  },
+  "mutation": {
+    "total_mutants": 109,
+    "killed": 79,
+    "survived": 30,
+    "timeout": 0,
+    "suspicious": 0,
+    "skipped": 0,
+    "mutation_score": 72.5,
+    "status": "completed"
+  },
+  "scenarios": {
+    "total_test_methods": 79,
+    "tested_methods": {
+      "methods_tested": [
+        "__init__",
+        "add_item",
+        "remove_item",
+        "get_subtotal",
+        "apply_discount",
+        "calculate_shipping",
+        "calculate_tax",
+        "calculate_total",
+        "total_items",
+        "list_items",
+        "is_empty",
+        "clear_order"
+      ],
+      "methods_tested_count": 12,
+      "total_methods": 12,
+      "method_coverage_rate": 100.0,
+      "method_call_counts": {
+        "__init__": 80,
+        "add_item": 48,
+        "remove_item": 8,
+        "get_subtotal": 5,
+        "apply_discount": 10,
+        "calculate_shipping": 8,
+        "calculate_tax": 7,
+        "calculate_total": 10,
+        "total_items": 5,
+        "list_items": 7,
+        "is_empty": 8,
+        "clear_order": 5
+      }
+    },
+    "duplicates": {
+      "total_tests_analyzed": 79,
+      "duplicate_pairs_found": 0,
+      "unique_duplicate_tests": 0,
+      "duplicates": []
+    },
+    "assertion_quality": {
+      "total_assertions": 71,
+      "weak_assertions_count": 8,
+      "strong_assertions_count": 63,
+      "weak_assertions": [
+        {
+          "test": "test_remove_item_existing_item",
+          "line": 131,
+          "type": "assertTrue"
+        },
+        {
+          "test": "test_clear_order_non_empty",
+          "line": 373,
+          "type": "assertTrue"
+        },
+        {
+          "test": "test_is_empty_true",
+          "line": 428,
+          "type": "assertTrue"
+        },
+        {
+          "test": "test_is_empty_false",
+          "line": 433,
+          "type": "assertFalse"
+        },
+        {
+          "test": "test_is_empty_state_transitions",
+          "line": 437,
+          "type": "assertTrue"
+        }
+      ],
+      "assertions_without_message": 104,
+      "assertion_quality_score": 88.7
+    },
+    "exception_quality": {
+      "exception_tests_count": 33,
+      "tests_with_message_check": 1,
+      "generic_exception_usage": 0,
+      "exception_tests": [
+        {
+          "test": "test_init_tax_rate_type_error",
+          "line": 20,
+          "exception_type": "TypeError"
+        },
+        {
+          "test": "test_init_tax_rate_out_of_range_low",
+          "line": 24,
+          "exception_type": "ValueError"
+        },
+        {
+          "test": "test_init_tax_rate_out_of_range_high",
+          "line": 28,
+          "exception_type": "ValueError"
+        },
+        {
+          "test": "test_init_free_shipping_threshold_type_error",
+          "line": 32,
+          "exception_type": "TypeError"
+        },
+        {
+          "test": "test_init_free_shipping_threshold_negative",
+          "line": 36,
+          "exception_type": "ValueError"
+        },
+        {
+          "test": "test_init_shipping_cost_type_error",
+          "line": 40,
+          "exception_type": "TypeError"
+        },
+        {
+          "test": "test_init_shipping_cost_negative",
+          "line": 44,
+          "exception_type": "ValueError"
+        },
+        {
+          "test": "test_add_item_name_empty_string_raises_value_error",
+          "line": 81,
+          "exception_type": "ValueError"
+        },
+        {
+          "test": "test_add_item_name_not_string_raises_type_error",
+          "line": 86,
+          "exception_type": "TypeError"
+        },
+        {
+          "test": "test_add_item_price_not_numeric_raises_type_error",
+          "line": 91,
+          "exception_type": "TypeError"
+        }
+      ],
+      "exception_quality_score": 3.0
+    },
+    "independence": {
+      "tests_modifying_self_count": 0,
+      "tests_with_class_variables_count": 0,
+      "tests_modifying_self": [],
+      "independence_score": 100,
+      "is_independent": true
+    },
+    "naming_quality": {
+      "total_tests": 79,
+      "average_name_length": 38.7,
+      "short_names_count": 0,
+      "descriptive_names_count": 57,
+      "naming_patterns": {
+        "should": 0,
+        "when": 0,
+        "given": 0,
+        "test_": 79,
+        "with": 1,
+        "returns": 0,
+        "raises": 18
+      },
+      "naming_quality_score": 72.2,
+      "short_names": []
+    },
+    "code_smells": {
+      "smells": {
+        "tests_without_assertions": [],
+        "very_long_tests": [],
+        "tests_with_try_except": [],
+        "tests_with_sleep": [],
+        "magic_numbers": [
+          {
+            "test": "test_add_item_increase_quantity",
+            "count": 4,
+            "numbers": [
+              3,
+              10.0,
+              2,
+              5
+            ]
+          },
+          {
+            "test": "test_remove_item_multiple_adds_then_remove",
+            "count": 4,
+            "numbers": [
+              2.0,
+              3,
+              4,
+              7
+            ]
+          },
+          {
+            "test": "test_get_subtotal_multiple_items",
+            "count": 4,
+            "numbers": [
+              2.0,
+              3,
+              4,
+              5.0
+            ]
+          },
+          {
+            "test": "test_calculate_shipping_uses_updated_instance_values",
+            "count": 4,
+            "numbers": [
+              40.0,
+              50.0,
+              60.0,
+              7.0
+            ]
+          },
+          {
+            "test": "test_calculate_total_with_discount_shipping_charged",
+            "count": 4,
+            "numbers": [
+              10.0,
+              50.0,
+              2,
+              90.0
+            ]
+          },
+          {
+            "test": "test_calculate_total_free_shipping_after_discount",
+            "count": 4,
+            "numbers": [
+              10.0,
+              2,
+              75.0,
+              120.0
+            ]
+          },
+          {
+            "test": "test_calculate_total_uses_updated_shipping_and_tax",
+            "count": 4,
+            "numbers": [
+              50.0,
+              2,
+              5.0,
+              150.0
+            ]
+          },
+          {
+            "test": "test_total_items_multiple_items",
+            "count": 4,
+            "numbers": [
+              2.0,
+              3,
+              4,
+              7
+            ]
+          }
+        ],
+        "commented_code_lines": 1
+      },
+      "smell_score": 99,
+      "total_smells_found": 0
+    }
+  },
+  "summary": {
+    "model": "openrouter-nemotron-3-super-120b-a12b",
+    "strategy": "chain_of_thought_prompting",
+    "context_type": "full_context",
+    "timestamp": "2026-10-16T07:22:24.789277",
+    "response_time": 253.68620109558105,
+    "compilation_success_rate": 100,
+    "execution_success_rate": 100,
+    "tests_generated": 79,
+    "tests_passed": 79,
+    "tests_failed": 0,
+    "test_success_rate": 100.0,
+    "statement_coverage": 100,
+    "branch_coverage": 100,
+    "missing_statements": 0,
+    "total_statements": 93,
+    "mutation_score": 72.5,
+    "mutants_killed": 79,
+    "mutants_survived": 30,
+    "total_mutants": 109,
+    "total_test_methods": 79,
+    "total_assertions": 71,
+    "tests_with_error_handling": 33,
+    "methods_tested_count": 12,
+    "total_methods": 12,
+    "method_coverage_rate": 100.0,
+    "duplicate_tests_found": 0,
+    "avg_assertions_per_test": 0.9,
+    "assertion_quality_score": 88.7,
+    "weak_assertions_count": 8,
+    "strong_assertions_count": 63,
+    "exception_quality_score": 3.0,
+    "exception_tests_count": 33,
+    "tests_with_message_check": 1,
+    "independence_score": 100,
+    "is_independent": true,
+    "naming_quality_score": 72.2,
+    "average_name_length": 38.7,
+    "smell_score": 99,
+    "total_smells_found": 0,
+    "overall_quality_score": 78.3
+  }
+}

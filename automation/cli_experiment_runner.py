@@ -52,7 +52,7 @@ class CLIExperimentRunner:
     - Universal mode (extractor provided): Uses any Python class
     """
 
-    def __init__(self, base_results_dir="cli_results", run_id=None, extractor=None):
+    def __init__(self, base_results_dir="cli_results_v1", run_id=None, extractor=None):
         """
         Initialize the CLI experiment runner.
 
@@ -428,8 +428,8 @@ Examples:
                              'OPENROUTER_API_KEY, GROQ_API_KEY) and connectivity')
     parser.add_argument('--run-id', type=str, default=None,
                         help='Run identifier: number (e.g., 1), "overwrite", or omit for auto-increment')
-    parser.add_argument('--results-dir', type=str, default='cli_results',
-                        help='Directory for storing results (default: cli_results)')
+    parser.add_argument('--results-dir', type=str, default='cli_results_v1',
+                        help='Directory for storing results (default: cli_results_v1)')
 
     # Universal mode arguments
     parser.add_argument('--source-file', type=str, default=None,
