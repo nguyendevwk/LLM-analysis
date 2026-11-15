@@ -1,9 +1,10 @@
 """
 Hugging Face Transformers Client for Local GPU Inference.
 
-Enables local test generation using open-source models (e.g., Qwen 2.5 Coder 14B,
-Qwen3 4B, Llama 3.1) directly on local GPUs or Kaggle Dual-GPU (2x Tesla T4)
-with 4-bit NF4 quantization ($0 API cost).
+Enables local test generation using official open-source base models
+(e.g., Qwen/Qwen2.5-Coder-14B-Instruct, Qwen/Qwen3-4B-Instruct-2507)
+directly on local GPUs or Kaggle Dual-GPU (2x Tesla T4 15GB) with
+standard on-the-fly 4-bit NF4 (NormalFloat4) quantization ($0 API cost).
 """
 
 import os
@@ -17,27 +18,19 @@ from .base_cli_client import BaseCLIClient
 
 logger = logging.getLogger(__name__)
 
-# Common friendly aliases mapped to Hugging Face model IDs
+# Official base models mapped to friendly aliases (Base models only, standard NF4)
 HF_MODEL_ALIASES: Dict[str, str] = {
-    # Qwen 2.5 Coder (NF4 Pre-quantized for fast download & VRAM safety)
-    "qwen2.5-coder:14b-nf4": "unsloth/Qwen2.5-Coder-14B-Instruct-bnb-4bit",
-    "qwen2.5-coder-14b-nf4": "unsloth/Qwen2.5-Coder-14B-Instruct-bnb-4bit",
-    "qwen-coder-14b-nf4": "unsloth/Qwen2.5-Coder-14B-Instruct-bnb-4bit",
-    "qwen2.5-coder:7b-nf4": "unsloth/Qwen2.5-Coder-7B-Instruct-bnb-4bit",
-    "qwen2.5-coder-7b-nf4": "unsloth/Qwen2.5-Coder-7B-Instruct-bnb-4bit",
-    "qwen-coder-7b-nf4": "unsloth/Qwen2.5-Coder-7B-Instruct-bnb-4bit",
-
-    # Qwen 2.5 Coder (Standard)
-    "qwen2.5-coder:14b": "unsloth/Qwen2.5-Coder-14B-Instruct-bnb-4bit",
-    "qwen2.5-coder-14b": "unsloth/Qwen2.5-Coder-14B-Instruct-bnb-4bit",
-    "qwen-coder-14b": "unsloth/Qwen2.5-Coder-14B-Instruct-bnb-4bit",
-    "qwen2.5-coder:7b": "unsloth/Qwen2.5-Coder-7B-Instruct-bnb-4bit",
-    "qwen2.5-coder-7b": "unsloth/Qwen2.5-Coder-7B-Instruct-bnb-4bit",
-    "qwen-coder-7b": "unsloth/Qwen2.5-Coder-7B-Instruct-bnb-4bit",
+    # Qwen 2.5 Coder Official Base Models
+    "qwen2.5-coder:14b": "Qwen/Qwen2.5-Coder-14B-Instruct",
+    "qwen2.5-coder-14b": "Qwen/Qwen2.5-Coder-14B-Instruct",
+    "qwen-coder-14b": "Qwen/Qwen2.5-Coder-14B-Instruct",
+    "qwen2.5-coder:7b": "Qwen/Qwen2.5-Coder-7B-Instruct",
+    "qwen2.5-coder-7b": "Qwen/Qwen2.5-Coder-7B-Instruct",
+    "qwen-coder-7b": "Qwen/Qwen2.5-Coder-7B-Instruct",
     "qwen2.5-coder:1.5b": "Qwen/Qwen2.5-Coder-1.5B-Instruct",
     "qwen2.5-coder:32b": "Qwen/Qwen2.5-Coder-32B-Instruct",
 
-    # Qwen 3 & Qwen 2.5 General
+    # Qwen 3 & Qwen 2.5 General Official Base Models
     "qwen3:4b": "Qwen/Qwen3-4B-Instruct-2507",
     "qwen3-4b": "Qwen/Qwen3-4B-Instruct-2507",
     "qwen3-4b-instruct": "Qwen/Qwen3-4B-Instruct-2507",
@@ -48,18 +41,37 @@ HF_MODEL_ALIASES: Dict[str, str] = {
     "qwen2.5:14b": "Qwen/Qwen2.5-14B-Instruct",
     "qwen2.5-14b": "Qwen/Qwen2.5-14B-Instruct",
 
-    # Llama & DeepSeek
+    # Llama & DeepSeek Official Base Models
     "llama3.1:8b": "meta-llama/Llama-3.1-8B-Instruct",
     "deepseek-coder:6.7b": "deepseek-ai/deepseek-coder-6.7b-instruct",
 }
 
 
+def ensure_bitsandbytes() -> bool:
+    """Ensure bitsandbytes>=0.46.1 is installed for standard NF4 quantization."""
+    try:
+        import bitsandbytes  # noqa: F401
+        return True
+    except ImportError:
+        logger.info("bitsandbytes not found. Auto-installing 'bitsandbytes>=0.46.1'...")
+        try:
+            import subprocess
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", "-U", "bitsandbytes>=0.46.1"])
+            import bitsandbytes  # noqa: F401
+            logger.info("Successfully installed bitsandbytes.")
+            return True
+        except Exception as e:
+            logger.warning(f"Could not auto-install bitsandbytes: {e}")
+            return False
+
+
 class HuggingFaceClient(BaseCLIClient):
     """
-    Client for local Hugging Face Transformers models.
+    Client for local Hugging Face Transformers base models.
 
-    Supports 4-bit NF4 quantization via bitsandbytes to run large models
-    (such as Qwen 2.5 Coder 14B) within 15 GB VRAM limits (e.g. Tesla T4).
+    Applies standard on-the-fly 4-bit NF4 quantization via bitsandbytes
+    to run large official base models (e.g. Qwen/Qwen2.5-Coder-14B-Instruct)
+    within 15 GB VRAM limits (Tesla T4) without exceeding memory.
     """
 
     def __init__(
@@ -77,9 +89,9 @@ class HuggingFaceClient(BaseCLIClient):
         Initialize the Hugging Face client.
 
         Args:
-            model: Hugging Face repo ID or friendly alias (e.g. 'qwen2.5-coder:14b')
+            model: Official Hugging Face model ID or alias (e.g. 'Qwen/Qwen2.5-Coder-14B-Instruct')
             device: Specific device ('cuda:0', 'cuda:1', 'cpu', or 'auto')
-            load_in_4bit: Whether to load with 4-bit NF4 quantization
+            load_in_4bit: Whether to apply standard 4-bit NF4 quantization
             temperature: Sampling temperature (default: 0.2)
             max_tokens: Max new tokens to generate (default: 2048)
             api_key: Optional Hugging Face token (or HF_TOKEN env var)
@@ -98,6 +110,23 @@ class HuggingFaceClient(BaseCLIClient):
         self._model_obj = None
         self._tokenizer = None
 
+    def check_installation(self) -> bool:
+        """Verify that PyTorch and Transformers are installed."""
+        try:
+            import torch  # noqa: F401
+            import transformers  # noqa: F401
+            return True
+        except ImportError:
+            logger.error(
+                "PyTorch and Hugging Face Transformers are required.\n"
+                "Install them via: pip install torch transformers accelerate 'bitsandbytes>=0.46.1'"
+            )
+            return False
+
+    def check_authentication(self) -> bool:
+        """Verify authentication (Qwen models are open-weights, no token strictly required)."""
+        return True
+
     @staticmethod
     def _has_cuda() -> bool:
         """Check if CUDA is available without throwing if torch is not installed."""
@@ -108,7 +137,7 @@ class HuggingFaceClient(BaseCLIClient):
             return False
 
     def _ensure_loaded(self):
-        """Lazy-load model and tokenizer when needed."""
+        """Lazy-load base model and tokenizer with standard NF4 quantization."""
         if self._model_obj is not None and self._tokenizer is not None:
             return
 
@@ -118,11 +147,11 @@ class HuggingFaceClient(BaseCLIClient):
         except ImportError as e:
             raise RuntimeError(
                 "HuggingFace direct inference requires 'torch' and 'transformers'.\n"
-                "Install them via: pip install torch transformers accelerate bitsandbytes\n"
+                "Install them via: pip install torch transformers accelerate 'bitsandbytes>=0.46.1'\n"
                 "Or run via local OpenAI server (Ollama/vLLM) with provider 'local'."
             ) from e
 
-        logger.info(f"Loading Hugging Face model '{self.model_id}' onto {self.device}...")
+        logger.info(f"Loading official base model '{self.model_id}' onto {self.device} (Standard NF4 4-bit)...")
         start_t = time.time()
 
         tokenizer_kwargs = {"trust_remote_code": True}
@@ -132,7 +161,6 @@ class HuggingFaceClient(BaseCLIClient):
         try:
             self._tokenizer = AutoTokenizer.from_pretrained(self.model_id, **tokenizer_kwargs)
         except Exception:
-            # Fallback for preview models if repo is gated or renamed
             fallback = "Qwen/Qwen2.5-Coder-7B-Instruct"
             logger.warning(f"Could not load tokenizer for '{self.model_id}', falling back to '{fallback}'")
             self.model_id = fallback
@@ -143,26 +171,29 @@ class HuggingFaceClient(BaseCLIClient):
 
         model_kwargs: Dict[str, Any] = {
             "trust_remote_code": True,
+            "low_cpu_mem_usage": True,
         }
         if self.hf_token:
             model_kwargs["token"] = self.hf_token
 
         if self.load_in_4bit and torch.cuda.is_available():
+            ensure_bitsandbytes()
             try:
                 from transformers import BitsAndBytesConfig
+                compute_dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
                 quantization_config = BitsAndBytesConfig(
                     load_in_4bit=True,
-                    bnb_4bit_compute_dtype=torch.float16,
+                    bnb_4bit_compute_dtype=compute_dtype,
                     bnb_4bit_use_double_quant=True,
                     bnb_4bit_quant_type="nf4",
                 )
                 model_kwargs["quantization_config"] = quantization_config
                 model_kwargs["device_map"] = {"": self.device} if self.device != "auto" else "auto"
-                logger.info("Using 4-bit NF4 quantization for memory efficiency (~8.5GB VRAM for 14B).")
+                logger.info(f"Loaded with standard NF4 quantization (compute_dtype={compute_dtype}).")
             except Exception as quant_err:
-                logger.warning(f"BitsAndBytes 4-bit quantization failed: {quant_err}. Falling back to float16.")
+                logger.warning(f"BitsAndBytes NF4 quantization failed: {quant_err}. Falling back to float16.")
                 model_kwargs["torch_dtype"] = torch.float16
-                model_kwargs["device_map"] = "auto"
+                model_kwargs["device_map"] = {"": self.device} if self.device != "auto" else "auto"
         else:
             if torch.cuda.is_available():
                 model_kwargs["torch_dtype"] = torch.float16
@@ -173,7 +204,7 @@ class HuggingFaceClient(BaseCLIClient):
         self._model_obj = AutoModelForCausalLM.from_pretrained(self.model_id, **model_kwargs)
         logger.info(f"Model '{self.model_id}' successfully loaded in {time.time() - start_t:.2f}s.")
 
-    def send_prompt(self, prompt: str) -> Optional[str]:
+    def send_prompt(self, prompt: str, **kwargs) -> Optional[str]:
         """Send a single prompt and return generated text."""
         messages = [{"role": "user", "content": prompt}]
         return self._generate_messages(messages)
@@ -250,6 +281,9 @@ class HuggingFaceClient(BaseCLIClient):
             logger.error(f"Generation error with model '{self.model_id}': {e}", exc_info=True)
             self.last_response_time = time.time() - start_time
             return None
+        finally:
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
 
     def close(self):
         """Free GPU memory cache."""

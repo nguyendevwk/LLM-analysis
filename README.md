@@ -231,19 +231,22 @@ Hệ thống hỗ trợ các mô hình mã nguồn mở cục bộ chạy qua Ol
 
 Dự án cung cấp bộ công cụ tối ưu hóa riêng cho môi trường **Kaggle Dual-GPU (2x Tesla T4 15GB)** hoàn toàn miễn phí.
 
-> **Lưu ý**: Tùy chọn Kaggle được thiết kế chuyên biệt để chạy qua **dòng lệnh (CMD / Terminal)** hoặc **Jupyter Notebook** trên Kaggle, **không đẩy lên giao diện Web (Streamlit)** để bảo vệ VRAM server. Đồng thời, toàn bộ model đều sử dụng **bản NF4 đã lượng tử hóa sẵn** để chống tràn VRAM và RAM.
+> **Lưu ý**: Tùy chọn Kaggle được thiết kế chuyên biệt để chạy qua **dòng lệnh (CMD / Terminal)** hoặc **Jupyter Notebook** trên Kaggle, **không đẩy lên giao diện Web (Streamlit)** để bảo vệ VRAM server. Ưu tiên sử dụng **modelbase gốc** (`Qwen/Qwen2.5-Coder-7B-Instruct` hoặc `14B`) kết hợp **chuẩn NF4 (4-bit)** để chống tràn VRAM.
 
-- **Kiến trúc Dual-GPU MoA**:
-  - **GPU 0 (cuda:0)**: Coder Model `unsloth/Qwen2.5-Coder-14B-Instruct-bnb-4bit` (bản NF4 4-bit, ~8.5GB VRAM).
-  - **GPU 1 (cuda:1)**: Critic Model `Qwen/Qwen2.5-3B-Instruct` (bản NF4 4-bit, ~2.8GB VRAM).
+- **Kiến trúc Dual-GPU MoA (`CouncilEngine`)**:
+  - **GPU 0 (cuda:0)**: Coder Model `Qwen/Qwen2.5-Coder-7B-Instruct` (hoặc `14B`) chuẩn NF4 4-bit (~4.5GB - 8.5GB VRAM).
+  - **GPU 1 (cuda:1)**: Critic Model `Qwen/Qwen3-4B-Instruct-2507` chuẩn NF4 4-bit (~3.2GB VRAM).
 - **Notebook tương tác**: [`kaggle/kaggle_test_generator.ipynb`](kaggle/kaggle_test_generator.ipynb) — Có thể import trực tiếp vào Kaggle Notebook, chọn Accelerator `GPU T4 x2` và chạy "Run All".
-- **Kaggle CLI Runner**: [`kaggle/kaggle_dual_gpu_runner.py`](kaggle/kaggle_dual_gpu_runner.py):
+- **Council CLI Runner**: [`council_runner.py`](council_runner.py) / [`kaggle/kaggle_dual_gpu_runner.py`](kaggle/kaggle_dual_gpu_runner.py):
   ```bash
-  # Chạy Council (Coder 14B NF4 + Critic 3B/4B NF4) sinh test và đo Quality Gates
-  python kaggle/kaggle_dual_gpu_runner.py --mode council
+  # Chạy Council (Coder 7B + Critic 4B) với chuẩn NF4 4-bit:
+  python council_runner.py --mode council --load-in-4bit
 
-  # Chạy ma trận đầy đủ (2 chiến lược × 3 context)
-  python kaggle/kaggle_dual_gpu_runner.py --mode full_scenario
+  # Chạy ma trận đầy đủ (2 chiến lược × 3 context):
+  python council_runner.py --mode full_scenario --load-in-4bit
+
+  # Chạy test nhanh không tải trọng số (Mock mode):
+  python council_runner.py --mock --mode council
   ```
 - Chi tiết xem tại [Hướng dẫn Kaggle](kaggle/README_KAGGLE.md).
 
