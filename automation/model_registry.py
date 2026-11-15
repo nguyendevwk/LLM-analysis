@@ -123,11 +123,11 @@ REGISTRY: Dict[str, ModelSpec] = {
     "local-llama-3.1-8b": ModelSpec("local", "llama3.1:8b", GROUP_LOCAL, "Llama 3.1 8B (local)", notes="override LOCAL_BASE_URL if needed"),
 
     # --- Hugging Face Local GPU (Direct in-process inference / Kaggle Dual-GPU) ---
-    "hf-qwen-2.5-coder-14b": ModelSpec("hf", "Qwen/Qwen2.5-Coder-14B-Instruct", GROUP_HF, "Qwen 2.5 Coder 14B (HF/Kaggle)", notes="4-bit NF4: ~8.5GB VRAM on Tesla T4"),
-    "hf-qwen-2.5-coder-7b": ModelSpec("hf", "Qwen/Qwen2.5-Coder-7B-Instruct", GROUP_HF, "Qwen 2.5 Coder 7B (HF/Kaggle)", notes="4-bit NF4: ~4.5GB VRAM"),
-    "hf-qwen3-4b": ModelSpec("hf", "Qwen/Qwen3-4B-Instruct-2507", GROUP_HF, "Qwen3 4B (HF/Kaggle)", notes="4-bit NF4: ~3.2GB VRAM on Tesla T4"),
-    "hf-qwen-2.5-3b": ModelSpec("hf", "Qwen/Qwen2.5-3B-Instruct", GROUP_HF, "Qwen 2.5 3B (HF/Kaggle)", notes="4-bit NF4: ~2.8GB VRAM"),
-    "hf-qwen-2.5-7b": ModelSpec("hf", "Qwen/Qwen2.5-7B-Instruct", GROUP_HF, "Qwen 2.5 7B (HF/Kaggle)", notes="4-bit NF4: ~4.5GB VRAM"),
+    "hf-qwen-2.5-coder-14b": ModelSpec("hf", "unsloth/Qwen2.5-Coder-14B-Instruct-bnb-4bit", GROUP_HF, "Qwen 2.5 Coder 14B (NF4 4-bit)", notes="NF4 pre-quantized: ~8.5GB VRAM on Tesla T4"),
+    "hf-qwen-2.5-coder-7b": ModelSpec("hf", "unsloth/Qwen2.5-Coder-7B-Instruct-bnb-4bit", GROUP_HF, "Qwen 2.5 Coder 7B (NF4 4-bit)", notes="NF4 pre-quantized: ~4.5GB VRAM"),
+    "hf-qwen3-4b": ModelSpec("hf", "Qwen/Qwen3-4B-Instruct-2507", GROUP_HF, "Qwen3 4B (NF4 4-bit)", notes="4-bit NF4: ~3.2GB VRAM on Tesla T4"),
+    "hf-qwen-2.5-3b": ModelSpec("hf", "Qwen/Qwen2.5-3B-Instruct", GROUP_HF, "Qwen 2.5 3B (NF4 4-bit)", notes="4-bit NF4: ~2.8GB VRAM"),
+    "hf-qwen-2.5-7b": ModelSpec("hf", "unsloth/Qwen2.5-7B-Instruct-bnb-4bit", GROUP_HF, "Qwen 2.5 7B (NF4 4-bit)", notes="NF4 pre-quantized: ~4.5GB VRAM"),
 
     # --- InternAI / Discovery API (OpenAI-compatible) ---
     "intern-ai-glm-5-3": ModelSpec("intern-ai", "glm-5.3", GROUP_INTERNAI, "GLM 5.3"),

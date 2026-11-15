@@ -63,19 +63,30 @@ def check_gpu_environment() -> Dict[str, Any]:
 class DualGPUEngine:
     """
     Manages loading and inference across 2 GPUs on Kaggle:
-    - GPU 0 (cuda:0): Coder Model (e.g. Qwen2.5-Coder-14B-Instruct)
-    - GPU 1 (cuda:1 or cuda:0 fallback): Critic Model (e.g. Qwen3-4B-Instruct-2507)
+    - GPU 0 (cuda:0): Coder Model (e.g. Qwen2.5-Coder-14B NF4 pre-quantized, ~8.5GB VRAM)
+    - GPU 1 (cuda:1 or cuda:0 fallback): Critic Model (e.g. Qwen2.5-3B or Qwen3-4B NF4, ~2.8-3.5GB VRAM)
     """
+
+    # NF4 Pre-quantized model maps to avoid peak CPU RAM/VRAM usage during runtime quantization
+    NF4_MODEL_MAP = {
+        "qwen-14b-nf4": "unsloth/Qwen2.5-Coder-14B-Instruct-bnb-4bit",
+        "qwen-coder-14b": "unsloth/Qwen2.5-Coder-14B-Instruct-bnb-4bit",
+        "qwen2.5-coder-14b": "unsloth/Qwen2.5-Coder-14B-Instruct-bnb-4bit",
+        "qwen-7b-nf4": "unsloth/Qwen2.5-Coder-7B-Instruct-bnb-4bit",
+        "qwen-coder-7b": "unsloth/Qwen2.5-Coder-7B-Instruct-bnb-4bit",
+        "qwen3-4b": "Qwen/Qwen3-4B-Instruct-2507",
+        "qwen-3b": "Qwen/Qwen2.5-3B-Instruct",
+    }
 
     def __init__(
         self,
-        coder_model_id: str = "Qwen/Qwen2.5-Coder-14B-Instruct",
-        critic_model_id: str = "Qwen/Qwen3-4B-Instruct-2507",
+        coder_model_id: str = "unsloth/Qwen2.5-Coder-14B-Instruct-bnb-4bit",
+        critic_model_id: str = "Qwen/Qwen2.5-3B-Instruct",
         load_in_4bit: bool = True,
         hf_token: Optional[str] = None
     ):
-        self.coder_model_id = coder_model_id
-        self.critic_model_id = critic_model_id
+        self.coder_model_id = self.NF4_MODEL_MAP.get(coder_model_id.lower(), coder_model_id)
+        self.critic_model_id = self.NF4_MODEL_MAP.get(critic_model_id.lower(), critic_model_id)
         self.load_in_4bit = load_in_4bit
         self.hf_token = hf_token or os.environ.get("HF_TOKEN") or os.environ.get("HUGGINGFACE_API_KEY")
 
@@ -85,6 +96,7 @@ class DualGPUEngine:
         self.device_critic = "cuda:1" if self.gpu_count > 1 else ("cuda:0" if self.gpu_count == 1 else "cpu")
 
         logger.info(f"Dual-GPU setup: Coder on {self.device_coder}, Critic on {self.device_critic}")
+        logger.info(f"Using NF4 Quantization to protect Tesla T4 15GB VRAM limits.")
 
         self.coder_model = None
         self.coder_tokenizer = None
@@ -95,7 +107,7 @@ class DualGPUEngine:
         import torch
         from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 
-        logger.info(f"Loading '{model_id}' onto {device}...")
+        logger.info(f"Loading '{model_id}' onto {device} (NF4 4-bit)...")
         start_t = time.time()
 
         tok_kwargs = {"trust_remote_code": True}
@@ -105,7 +117,7 @@ class DualGPUEngine:
         try:
             tokenizer = AutoTokenizer.from_pretrained(model_id, **tok_kwargs)
         except Exception:
-            fallback = "Qwen/Qwen2.5-Coder-7B-Instruct" if "14B" in model_id else "Qwen/Qwen2.5-3B-Instruct"
+            fallback = "unsloth/Qwen2.5-Coder-7B-Instruct-bnb-4bit" if "14B" in model_id or "14b" in model_id else "Qwen/Qwen2.5-3B-Instruct"
             logger.warning(f"Could not load '{model_id}', falling back to '{fallback}'")
             model_id = fallback
             tokenizer = AutoTokenizer.from_pretrained(model_id, **tok_kwargs)
@@ -113,7 +125,10 @@ class DualGPUEngine:
         if tokenizer.pad_token is None:
             tokenizer.pad_token = tokenizer.eos_token
 
-        model_kwargs = {"trust_remote_code": True}
+        model_kwargs = {
+            "trust_remote_code": True,
+            "low_cpu_mem_usage": True,
+        }
         if self.hf_token:
             model_kwargs["token"] = self.hf_token
 
@@ -480,8 +495,8 @@ def run_full_scenario_benchmark(
 def main():
     parser = argparse.ArgumentParser(description="Kaggle Dual-GPU Test Generation Runner")
     parser.add_argument("--mode", choices=["council", "full_scenario", "diagnostics"], default="council")
-    parser.add_argument("--coder-model", default="Qwen/Qwen2.5-Coder-14B-Instruct")
-    parser.add_argument("--critic-model", default="Qwen/Qwen3-4B-Instruct-2507")
+    parser.add_argument("--coder-model", default="unsloth/Qwen2.5-Coder-14B-Instruct-bnb-4bit", help="Coder model (default: NF4 pre-quantized 14B to prevent VRAM overflow)")
+    parser.add_argument("--critic-model", default="Qwen/Qwen2.5-3B-Instruct", help="Critic model (default: 3B/4B in 4-bit NF4)")
     parser.add_argument("--source-file", default="order_calculator.py")
     parser.add_argument("--class-name", default="OrderCalculator")
     parser.add_argument("--output-dir", default="kaggle_results")

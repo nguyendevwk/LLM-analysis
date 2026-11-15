@@ -229,14 +229,17 @@ Hệ thống hỗ trợ các mô hình mã nguồn mở cục bộ chạy qua Ol
 
 ### Kaggle Dual-GPU Testing & Benchmarking ($0 API Cost)
 
-Dự án cung cấp bộ công cụ tối ưu hóa riêng cho môi trường **Kaggle Dual-GPU (2x Tesla T4 15GB)** hoàn toàn miễn phí:
+Dự án cung cấp bộ công cụ tối ưu hóa riêng cho môi trường **Kaggle Dual-GPU (2x Tesla T4 15GB)** hoàn toàn miễn phí.
+
+> **Lưu ý**: Tùy chọn Kaggle được thiết kế chuyên biệt để chạy qua **dòng lệnh (CMD / Terminal)** hoặc **Jupyter Notebook** trên Kaggle, **không đẩy lên giao diện Web (Streamlit)** để bảo vệ VRAM server. Đồng thời, toàn bộ model đều sử dụng **bản NF4 đã lượng tử hóa sẵn** để chống tràn VRAM và RAM.
+
 - **Kiến trúc Dual-GPU MoA**:
-  - **GPU 0 (cuda:0)**: Coder Model `Qwen/Qwen2.5-Coder-14B-Instruct` nạp 4-bit NF4 (~8.5GB VRAM).
-  - **GPU 1 (cuda:1)**: Critic Model `Qwen/Qwen3-4B-Instruct-2507` nạp 4-bit NF4 (~3.2GB VRAM).
+  - **GPU 0 (cuda:0)**: Coder Model `unsloth/Qwen2.5-Coder-14B-Instruct-bnb-4bit` (bản NF4 4-bit, ~8.5GB VRAM).
+  - **GPU 1 (cuda:1)**: Critic Model `Qwen/Qwen2.5-3B-Instruct` (bản NF4 4-bit, ~2.8GB VRAM).
 - **Notebook tương tác**: [`kaggle/kaggle_test_generator.ipynb`](kaggle/kaggle_test_generator.ipynb) — Có thể import trực tiếp vào Kaggle Notebook, chọn Accelerator `GPU T4 x2` và chạy "Run All".
 - **Kaggle CLI Runner**: [`kaggle/kaggle_dual_gpu_runner.py`](kaggle/kaggle_dual_gpu_runner.py):
   ```bash
-  # Chạy Council (Coder 14B + Critic 4B) sinh test và đo Quality Gates
+  # Chạy Council (Coder 14B NF4 + Critic 3B/4B NF4) sinh test và đo Quality Gates
   python kaggle/kaggle_dual_gpu_runner.py --mode council
 
   # Chạy ma trận đầy đủ (2 chiến lược × 3 context)

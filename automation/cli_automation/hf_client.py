@@ -19,13 +19,21 @@ logger = logging.getLogger(__name__)
 
 # Common friendly aliases mapped to Hugging Face model IDs
 HF_MODEL_ALIASES: Dict[str, str] = {
-    # Qwen 2.5 Coder
-    "qwen2.5-coder:14b": "Qwen/Qwen2.5-Coder-14B-Instruct",
-    "qwen2.5-coder-14b": "Qwen/Qwen2.5-Coder-14B-Instruct",
-    "qwen-coder-14b": "Qwen/Qwen2.5-Coder-14B-Instruct",
-    "qwen2.5-coder:7b": "Qwen/Qwen2.5-Coder-7B-Instruct",
-    "qwen2.5-coder-7b": "Qwen/Qwen2.5-Coder-7B-Instruct",
-    "qwen-coder-7b": "Qwen/Qwen2.5-Coder-7B-Instruct",
+    # Qwen 2.5 Coder (NF4 Pre-quantized for fast download & VRAM safety)
+    "qwen2.5-coder:14b-nf4": "unsloth/Qwen2.5-Coder-14B-Instruct-bnb-4bit",
+    "qwen2.5-coder-14b-nf4": "unsloth/Qwen2.5-Coder-14B-Instruct-bnb-4bit",
+    "qwen-coder-14b-nf4": "unsloth/Qwen2.5-Coder-14B-Instruct-bnb-4bit",
+    "qwen2.5-coder:7b-nf4": "unsloth/Qwen2.5-Coder-7B-Instruct-bnb-4bit",
+    "qwen2.5-coder-7b-nf4": "unsloth/Qwen2.5-Coder-7B-Instruct-bnb-4bit",
+    "qwen-coder-7b-nf4": "unsloth/Qwen2.5-Coder-7B-Instruct-bnb-4bit",
+
+    # Qwen 2.5 Coder (Standard)
+    "qwen2.5-coder:14b": "unsloth/Qwen2.5-Coder-14B-Instruct-bnb-4bit",
+    "qwen2.5-coder-14b": "unsloth/Qwen2.5-Coder-14B-Instruct-bnb-4bit",
+    "qwen-coder-14b": "unsloth/Qwen2.5-Coder-14B-Instruct-bnb-4bit",
+    "qwen2.5-coder:7b": "unsloth/Qwen2.5-Coder-7B-Instruct-bnb-4bit",
+    "qwen2.5-coder-7b": "unsloth/Qwen2.5-Coder-7B-Instruct-bnb-4bit",
+    "qwen-coder-7b": "unsloth/Qwen2.5-Coder-7B-Instruct-bnb-4bit",
     "qwen2.5-coder:1.5b": "Qwen/Qwen2.5-Coder-1.5B-Instruct",
     "qwen2.5-coder:32b": "Qwen/Qwen2.5-Coder-32B-Instruct",
 
