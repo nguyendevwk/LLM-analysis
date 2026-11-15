@@ -60,22 +60,28 @@ def _python_for_module(module_name: str) -> Optional[str]:
     # Auto-installation attempt for missing analysis dependencies (e.g. mutmut in Kaggle)
     logger.info("Module '%s' not found in candidate interpreters. Attempting pip install...", module_name)
     try:
-        install_res = subprocess.run(
-            [sys.executable, "-m", "pip", "install", "-q", module_name],
+        pip_args = [sys.executable, "-m", "pip", "install", "-q", "--no-warn-conflicts"]
+        if module_name == "mutmut":
+            pip_args.extend(["mutmut", "rich<14"])
+        else:
+            pip_args.append(module_name)
+
+        subprocess.run(
+            pip_args,
             capture_output=True,
             text=True,
             timeout=180,
         )
-        if install_res.returncode == 0:
-            probe = subprocess.run(
-                [sys.executable, "-c", f"import {module_name}"],
-                capture_output=True,
-                text=True,
-                timeout=15,
-            )
-            if probe.returncode == 0:
-                logger.info("Successfully installed '%s' into %s", module_name, sys.executable)
-                return str(sys.executable)
+        # Check import probe regardless of pip exit code (pip may return non-zero on harmless resolver warnings)
+        probe = subprocess.run(
+            [sys.executable, "-c", f"import {module_name}"],
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        if probe.returncode == 0:
+            logger.info("Successfully verified '%s' in %s", module_name, sys.executable)
+            return str(sys.executable)
     except Exception as e:
         logger.warning("Auto-installation of '%s' failed: %s", module_name, e)
 
@@ -139,23 +145,29 @@ class ExperimentRunner:
         tests_file = result_dir / "tests.py"
         tests_file.write_text(test_code)
 
-        if self.source_file is not None and self.source_file.exists():
-            dest_file = result_dir / f"{self.module_name}.py"
-            shutil.copy2(self.source_file, dest_file)
-            logger.info("Copied %s to test directory", self.source_file)
+        repo_root = Path(__file__).resolve().parents[1]
+        resolved_source = None
+        if self.source_file is not None and Path(self.source_file).exists():
+            resolved_source = Path(self.source_file)
         else:
-            source_file = Path(f"../{self.module_name}.py")
-            if not source_file.exists():
-                source_file = Path(f"../../{self.module_name}.py")
-            if not source_file.exists():
-                source_file = Path(f"{self.module_name}.py")
+            candidates = [
+                repo_root / f"{self.module_name}.py",
+                Path(f"{self.module_name}.py"),
+                result_dir.parent / f"{self.module_name}.py",
+                Path(f"../{self.module_name}.py"),
+                Path(f"../../{self.module_name}.py"),
+            ]
+            for cand in candidates:
+                if cand.exists():
+                    resolved_source = cand.resolve()
+                    break
 
-            if source_file.exists():
-                dest_file = result_dir / f"{self.module_name}.py"
-                shutil.copy2(source_file, dest_file)
-                logger.info("Copied %s to test directory", source_file)
-            else:
-                logger.error("%s.py not found - tests will fail", self.module_name)
+        if resolved_source and resolved_source.exists():
+            dest_file = result_dir / f"{self.module_name}.py"
+            shutil.copy2(resolved_source, dest_file)
+            logger.info("Copied %s to test directory", resolved_source)
+        else:
+            logger.error("%s.py not found - tests will fail", self.module_name)
 
         mutmut_test_file = result_dir / "mutmut_test.py"
         self.create_filtered_test_file(tests_file, mutmut_test_file)
@@ -180,12 +192,20 @@ class ExperimentRunner:
     def create_filtered_test_file(self, source_test_file, target_test_file):
         """Create a test file with only passing tests for mutation testing."""
         try:
+            repo_root = str(Path(__file__).resolve().parents[1])
+            sub_env = dict(os.environ)
+            sub_env["PYTHONPATH"] = (
+                str(source_test_file.parent) + os.pathsep + repo_root +
+                (os.pathsep + sub_env["PYTHONPATH"] if sub_env.get("PYTHONPATH") else "")
+            )
+
             result = subprocess.run(
                 [sys.executable, '-m', 'unittest', source_test_file.stem, '-v'],
                 cwd=source_test_file.parent,
                 capture_output=True,
                 text=True,
-                timeout=120
+                timeout=120,
+                env=sub_env
             )
 
             passing_tests = set()
@@ -275,7 +295,8 @@ class ExperimentRunner:
                     cwd=target_test_file.parent,
                     capture_output=True,
                     text=True,
-                    timeout=60
+                    timeout=60,
+                    env=sub_env
                 )
                 if verify_res.returncode == 0:
                     logger.info("Filtered test file verified: 100%% passing tests for mutmut baseline")
@@ -733,15 +754,30 @@ class ExperimentRunner:
                     logger.info("mutmut_test.py not found in %s, generating filtered tests from tests.py", result_dir)
                     self.create_filtered_test_file(tests_orig, test_src)
 
-            test_dst = mutants_dir / "tests" / "mutmut_test.py"
-            test_dst.parent.mkdir(exist_ok=True)
+            # Clean stale test files in mutants/tests to avoid discovery collisions
+            tests_dir = mutants_dir / "tests"
+            tests_dir.mkdir(parents=True, exist_ok=True)
+            for old_t in tests_dir.glob("*_test.py"):
+                try:
+                    old_t.unlink()
+                except OSError:
+                    pass
+
+            test_dst = tests_dir / "mutmut_test.py"
             shutil.copy2(test_src, test_dst)
+
+            # Ensure source file under test is synchronized in mutants/src
+            src_dir_path = mutants_dir / "src"
+            src_dir_path.mkdir(parents=True, exist_ok=True)
+            candidate_source = result_dir / f"{self.module_name}.py"
+            if candidate_source.exists():
+                shutil.copy2(candidate_source, src_dir_path / f"{self.module_name}.py")
 
             # Make mutants/src importable for the test runner configured in
             # mutants/setup.cfg (`python3 -m unittest discover tests ...`):
             # the generated tests import the module under mutation from there.
             env = dict(os.environ)
-            src_dir = str(mutants_dir / "src")
+            src_dir = str(src_dir_path)
             env["PYTHONPATH"] = (
                 src_dir + os.pathsep + env["PYTHONPATH"]
                 if env.get("PYTHONPATH") else src_dir
@@ -763,15 +799,20 @@ class ExperimentRunner:
                 cwd=mutants_dir, capture_output=True, text=True, env=env
             )
 
+            mutmut_combined_out = (
+                (result.stdout or "") + "\n" +
+                (results_result.stdout or "") + "\n" +
+                (result.stderr or "")
+            )
             mutmut_results_file = result_dir / "mutmut_results.txt"
-            mutmut_results_file.write_text(results_result.stdout)
+            mutmut_results_file.write_text(mutmut_combined_out, encoding="utf-8")
 
             if result.returncode != 0:
                 logger.warning(
-                    "mutmut run exited with code %s: %s%s",
+                    "mutmut run exited with code %s: %s %s",
                     result.returncode,
-                    (result.stdout or "")[-400:],
-                    (result.stderr or "")[-400:],
+                    (result.stdout or "")[-300:],
+                    (result.stderr or "")[-300:],
                 )
 
             # mutmut 2.5.x prints the summary on `run` and per-status sections
@@ -806,25 +847,48 @@ class ExperimentRunner:
             'timeout': 0, 'suspicious': 0, 'skipped': 0, 'mutation_score': 0.0
         }
 
-        emoji_pattern = r'(\d+)/(\d+)\s+🎉\s+(\d+)\s+🫥\s+(\d+)\s+⏰\s+(\d+)\s+🤔\s+(\d+)\s+🙁\s+(\d+)\s+🔇\s+(\d+)'
-        match = re.search(emoji_pattern, mutmut_output)
-
-        if match:
-            progress_total = int(match.group(2))
-            killed = int(match.group(3))
-            timeout = int(match.group(4))
-            suspicious = int(match.group(6))
-            survived = int(match.group(7))
-            skipped = int(match.group(8))
-
+        # mutmut 2.5.x progress line (standard in 2.5.1):
+        # "109/109  🎉 66  ⏰ 0  🤔 0  🙁 43  🔇 0"
+        progress_pattern_standard = (
+            r'(\d+)/(\d+)\s+🎉\s+(\d+)\s+⏰\s+(\d+)'
+            r'\s+🤔\s+(\d+)\s+🙁\s+(\d+)\s+🔇\s+(\d+)'
+        )
+        matches = re.findall(progress_pattern_standard, mutmut_output)
+        if matches:
+            last = matches[-1]
+            total = int(last[1])
+            killed = int(last[2])
+            timeout = int(last[3])
+            suspicious = int(last[4])
+            survived = int(last[5])
+            skipped = int(last[6])
             stats.update({
-                'total_mutants': progress_total, 'killed': killed,
+                'total_mutants': total, 'killed': killed,
                 'survived': survived, 'timeout': timeout,
                 'suspicious': suspicious, 'skipped': skipped
             })
+            if total > 0:
+                stats['mutation_score'] = round((killed / total) * 100, 1)
 
-            if progress_total > 0:
-                stats['mutation_score'] = round((killed / progress_total) * 100, 1)
+        # Legacy mutmut progress with optional 🫥
+        if stats['total_mutants'] == 0:
+            emoji_pattern = r'(\d+)/(\d+)\s+🎉\s+(\d+)\s+🫥\s+(\d+)\s+⏰\s+(\d+)\s+🤔\s+(\d+)\s+🙁\s+(\d+)\s+🔇\s+(\d+)'
+            match = re.search(emoji_pattern, mutmut_output)
+            if match:
+                progress_total = int(match.group(2))
+                killed = int(match.group(3))
+                timeout = int(match.group(4))
+                suspicious = int(match.group(6))
+                survived = int(match.group(7))
+                skipped = int(match.group(8))
+
+                stats.update({
+                    'total_mutants': progress_total, 'killed': killed,
+                    'survived': survived, 'timeout': timeout,
+                    'suspicious': suspicious, 'skipped': skipped
+                })
+                if progress_total > 0:
+                    stats['mutation_score'] = round((killed / progress_total) * 100, 1)
 
         if stats['total_mutants'] == 0:
             # mutmut 2.5.x progress line (no 🫥 group):
