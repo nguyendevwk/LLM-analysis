@@ -65,11 +65,11 @@ def _python_for_module(module_name: str) -> Optional[str]:
                     if major >= 3:
                         logger.warning(
                             "Found mutmut %s (major >= 3), which broke backward compatibility with --paths-to-mutate and unittest runner. "
-                            "Downgrading to mutmut<3 (2.5.1) to preserve standard 109 mutants benchmark...",
+                            "Downgrading to mutmut 2.5.1 to preserve standard 109 mutants benchmark...",
                             ver_str,
                         )
                         subprocess.run(
-                            [str(candidate), "-m", "pip", "install", "-q", "--no-warn-conflicts", "mutmut<3", "rich<14"],
+                            [str(candidate), "-m", "pip", "install", "-q", "--force-reinstall", "--no-warn-conflicts", "mutmut==2.5.1", "rich<14"],
                             capture_output=True,
                             text=True,
                             timeout=180,
