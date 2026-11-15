@@ -213,29 +213,30 @@ def resolve_model(name: str) -> Optional[Tuple[ModelSpec, str]]:
     return None
 
 
-def build_client_factories() -> Dict[str, Callable]:
+def build_client_factories(**kwargs) -> Dict[str, Callable]:
     """
     Build {registered name: client factory} for all registry models.
 
     Factories are lazy: the API client (and its key check) is only created
-    when an experiment actually runs.
+    when an experiment actually runs. Any kwargs (e.g. temperature, max_tokens,
+    api_key) are forwarded to APIClient.
     """
     from cli_automation import APIClient
 
     factories: Dict[str, Callable] = {}
     for name, spec in REGISTRY.items():
         factories[name] = (
-            lambda provider=spec.provider, model=spec.model_id:
-                APIClient(provider=provider, model=model)
+            lambda provider=spec.provider, model=spec.model_id, kw=kwargs:
+                APIClient(provider=provider, model=model, **kw)
         )
     return factories
 
 
-def make_client_factory(spec: ModelSpec) -> Callable:
+def make_client_factory(spec: ModelSpec, **kwargs) -> Callable:
     """Build a factory for an arbitrary (e.g. ad-hoc) model spec."""
     from cli_automation import APIClient
 
-    return lambda: APIClient(provider=spec.provider, model=spec.model_id)
+    return lambda: APIClient(provider=spec.provider, model=spec.model_id, **kwargs)
 
 
 def list_model_names() -> List[str]:

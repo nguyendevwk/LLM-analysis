@@ -52,7 +52,15 @@ class CLIExperimentRunner:
     - Universal mode (extractor provided): Uses any Python class
     """
 
-    def __init__(self, base_results_dir="cli_results_v1", run_id=None, extractor=None):
+    def __init__(
+        self,
+        base_results_dir="cli_results_v1",
+        run_id=None,
+        extractor=None,
+        temperature=None,
+        max_tokens=None,
+        api_key=None,
+    ):
         """
         Initialize the CLI experiment runner.
 
@@ -60,11 +68,25 @@ class CLIExperimentRunner:
             base_results_dir: Directory for storing results
             run_id: Run identifier (number, "overwrite", or None for auto-increment)
             extractor: ClassContextExtractor for universal mode (None for legacy)
+            temperature: Sampling temperature for API providers (optional)
+            max_tokens: Max completion tokens limit (optional)
+            api_key: Override API key for this runner instance (optional)
         """
         self.base_results_dir = Path(base_results_dir)
         self.base_results_dir.mkdir(parents=True, exist_ok=True)
         self.run_id = run_id
         self.extractor = extractor
+        self.temperature = temperature
+        self.max_tokens = max_tokens
+        self.api_key = api_key
+
+        self.client_kwargs = {}
+        if temperature is not None:
+            self.client_kwargs["temperature"] = temperature
+        if max_tokens is not None:
+            self.client_kwargs["max_tokens"] = max_tokens
+        if api_key is not None:
+            self.client_kwargs["api_key"] = api_key
 
         self.cli_clients = {
             # Claude Code models (newest first)
@@ -81,7 +103,7 @@ class CLIExperimentRunner:
 
         # Free/open providers (API-key based, no CLI tools required):
         # Gemini API, OpenRouter, Groq and local OpenAI-compatible servers.
-        self.cli_clients.update(model_registry.build_client_factories())
+        self.cli_clients.update(model_registry.build_client_factories(**self.client_kwargs))
 
         logger.info(f"CLI Experiment Runner initialized with {len(self.cli_clients)} models")
         if run_id == "overwrite":
@@ -139,7 +161,9 @@ class CLIExperimentRunner:
         if resolved is not None:
             spec, canonical = resolved
             if canonical not in self.cli_clients:
-                self.cli_clients[canonical] = model_registry.make_client_factory(spec)
+                self.cli_clients[canonical] = model_registry.make_client_factory(
+                    spec, **self.client_kwargs
+                )
                 logger.info(
                     "Registered ad-hoc model %s (%s/%s)",
                     canonical, spec.provider, spec.model_id
@@ -430,6 +454,12 @@ Examples:
                         help='Run identifier: number (e.g., 1), "overwrite", or omit for auto-increment')
     parser.add_argument('--results-dir', type=str, default='cli_results_v1',
                         help='Directory for storing results (default: cli_results_v1)')
+    parser.add_argument('--temperature', type=float, default=None,
+                        help='Sampling temperature (e.g. 0.2; 0.0 = greedy)')
+    parser.add_argument('--max-tokens', type=int, default=None,
+                        help='Max completion tokens (default: provider default)')
+    parser.add_argument('--api-key', type=str, default=None,
+                        help='Override API key for this run (bypasses .env key)')
 
     # Universal mode arguments
     parser.add_argument('--source-file', type=str, default=None,
@@ -492,7 +522,10 @@ Examples:
     runner = CLIExperimentRunner(
         base_results_dir=args.results_dir,
         run_id=run_id,
-        extractor=extractor
+        extractor=extractor,
+        temperature=args.temperature,
+        max_tokens=args.max_tokens,
+        api_key=args.api_key,
     )
 
     if args.list_models:

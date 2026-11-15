@@ -193,12 +193,17 @@ Both free and commercial paid models on OpenRouter are fully supported using `OP
   # Full 6-scenario batch with GPT-4o
   uv run python cli_experiment_runner.py --model openrouter:openai/gpt-4o --full-scenario
   ```
-- **Streamlit Web UI**: Select **OpenRouter (Paid)** or **OpenRouter (Free)** in the Provider dropdown. You can also pick `✨ Enter custom model ID...` to paste any model slug directly from [openrouter.ai/models](https://openrouter.ai/models).
+- **Streamlit Web UI**:
+  - Chế độ chọn Model: Hỗ trợ 2 chế độ linh hoạt:
+    - `📋 Chọn từ danh sách`: Chọn nhanh các model curated từ Claude Code, Gemini, Groq, OpenRouter (Paid & Free), InternAI.
+    - `✏️ Tự điền mã Model (Custom)`: Nhập trực tiếp bất kỳ model ID/slug nào từ [openrouter.ai/models](https://openrouter.ai/models), Groq, Gemini hoặc local server. Hệ thống tự động phân giải và tạo thư mục kết quả canonical.
+  - Parameter Tuning & Override: Tùy chỉnh trực tiếp `Temperature` (slider), `Max Completion Tokens`, và `API Key Override` ngay trên giao diện web hoặc CLI flags (`--temperature`, `--max-tokens`, `--api-key`).
 
 Curated models live in `automation/model_registry.py` (add one line to
 extend). Local open-weight servers (Ollama / LM Studio / vLLM) work through
 the `local` provider and `LOCAL_BASE_URL`. Request settings can be tuned via
-`LLM_TEMPERATURE`, `LLM_MAX_TOKENS`, `LLM_RECOVERY_MAX_TOKENS`,
+CLI arguments (`--temperature`, `--max-tokens`, `--api-key`) or environment
+variables `LLM_TEMPERATURE`, `LLM_MAX_TOKENS`, `LLM_RECOVERY_MAX_TOKENS`,
 `LLM_TIMEOUT` and `LLM_MAX_RETRIES`. `LLM_MAX_TOKENS` is not set by default:
 the client omits `max_tokens` and lets the provider choose the completion
 limit. `LLM_RECOVERY_MAX_TOKENS` controls the retry used when a

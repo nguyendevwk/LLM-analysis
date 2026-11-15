@@ -359,7 +359,8 @@ def parse_experiment_results(results_dir: str, strategy: str, context: str, mode
 
 def run_experiment(source_file: str, model: str, strategy: str, context: str,
                    class_name: str = None, run_id: int = None, results_dir: str = None,
-                   full_scenario: bool = False):
+                   full_scenario: bool = False, temperature: float = None,
+                   max_tokens: int = None, api_key: str = None):
     """Run experiment using CLI runner."""
     cmd = [sys.executable, "cli_experiment_runner.py", "--model", model]
     if full_scenario:
@@ -375,6 +376,12 @@ def run_experiment(source_file: str, model: str, strategy: str, context: str,
         cmd.extend(["--run-id", str(run_id)])
     if results_dir:
         cmd.extend(["--results-dir", results_dir])
+    if temperature is not None:
+        cmd.extend(["--temperature", str(temperature)])
+    if max_tokens is not None and max_tokens > 0:
+        cmd.extend(["--max-tokens", str(max_tokens)])
+    if api_key and api_key.strip():
+        cmd.extend(["--api-key", api_key.strip()])
 
     return subprocess.Popen(
         cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
@@ -437,24 +444,59 @@ def render_config_view():
         col1, col2, col3 = st.columns(3)
 
         with col1:
-            models = get_available_models()
-            for group_key in ("OpenRouter (Paid)", "OpenRouter (Free)"):
-                if group_key in models:
-                    models[group_key]["custom_openrouter"] = "✨ Enter custom model ID..."
+            st.markdown('<p style="font-weight:600; margin-bottom:4px;">Chế độ chọn Model</p>', unsafe_allow_html=True)
+            model_mode = st.radio(
+                "Chế độ chọn Model",
+                ["📋 Chọn từ danh sách", "✏️ Tự điền mã Model (Custom)"],
+                horizontal=True,
+                label_visibility="collapsed",
+                key="model_input_mode_radio"
+            )
 
-            provider = st.selectbox("Provider", list(models.keys()))
-            model_opts = models[provider]
-            selected_model = st.selectbox("Model", list(model_opts.keys()), format_func=lambda x: model_opts[x])
-            if selected_model == "custom_openrouter":
-                custom_id = st.text_input(
-                    "Custom OpenRouter Model ID",
-                    placeholder="e.g. anthropic/claude-3.7-sonnet",
-                    help="Enter any provider/model ID from https://openrouter.ai/models"
+            if model_mode == "📋 Chọn từ danh sách":
+                models = get_available_models()
+                provider = st.selectbox("Provider", list(models.keys()))
+                model_opts = models[provider]
+                selected_model = st.selectbox("Model", list(model_opts.keys()), format_func=lambda x: model_opts[x])
+            else:
+                custom_provider = st.selectbox(
+                    "Provider",
+                    [
+                        "OpenRouter (Trả phí & Miễn phí)",
+                        "Groq",
+                        "Google Gemini API",
+                        "InternAI / Discovery API",
+                        "Local (Ollama/vLLM)",
+                        "Tự nhận diện (Auto-detect)"
+                    ],
+                    index=0
                 )
-                if custom_id.strip():
-                    selected_model = f"openrouter:{custom_id.strip()}"
+                custom_model_input = st.text_input(
+                    "Điền mã Model (Model ID / Slug)",
+                    value="anthropic/claude-3.7-sonnet",
+                    placeholder="vd: anthropic/claude-3.7-sonnet, openai/gpt-4o...",
+                    help="Nhập bất kỳ mã model nào. Ví dụ OpenRouter: anthropic/claude-3.7-sonnet, openai/o3-mini, deepseek/deepseek-r1"
+                ).strip()
+
+                if not custom_model_input:
+                    custom_model_input = "anthropic/claude-3.7-sonnet"
+
+                if custom_provider.startswith("OpenRouter"):
+                    selected_model = custom_model_input if custom_model_input.startswith("openrouter:") else f"openrouter:{custom_model_input}"
+                elif custom_provider == "Groq":
+                    selected_model = custom_model_input if custom_model_input.startswith("groq:") else f"groq:{custom_model_input}"
+                elif custom_provider.startswith("Google Gemini"):
+                    selected_model = custom_model_input if custom_model_input.startswith("gemini:") else f"gemini:{custom_model_input}"
+                elif custom_provider.startswith("InternAI"):
+                    selected_model = custom_model_input if custom_model_input.startswith("intern-ai:") else f"intern-ai:{custom_model_input}"
+                elif custom_provider.startswith("Local"):
+                    selected_model = custom_model_input if custom_model_input.startswith("local:") else f"local:{custom_model_input}"
                 else:
-                    selected_model = "openrouter:anthropic/claude-3.7-sonnet"
+                    selected_model = custom_model_input
+
+                resolved = model_registry.resolve_model(selected_model)
+                canonical_info = f" -> `{resolved[1]}`" if resolved else ""
+                st.caption(f"🚀 Model thực thi: `{selected_model}`{canonical_info}")
 
         with col2:
             strategy = st.selectbox(
@@ -480,12 +522,16 @@ def render_config_view():
         )
 
         st.markdown("---")
-        st.markdown('<div class="section-header">Advanced Options</div>', unsafe_allow_html=True)
-        adv_col1, adv_col2 = st.columns(2)
+        st.markdown('<div class="section-header">Advanced Options & Parameter Tuning</div>', unsafe_allow_html=True)
+        adv_col1, adv_col2, adv_col3 = st.columns(3)
         with adv_col1:
-            run_id = st.number_input("Run ID (0 = auto)", min_value=0, value=0)
+            run_id = st.number_input("Run ID (0 = auto)", min_value=0, value=0, help="Định danh lần chạy; 0 để tự tăng run_001, run_002...")
+            temperature = st.slider("Temperature", min_value=0.0, max_value=1.5, value=0.2, step=0.05, help="Nhiệt độ sinh text (0.0: chặt chẽ, 1.0+: sáng tạo)")
         with adv_col2:
-            results_dir = st.text_input("Results directory", value="cli_results_v1")
+            results_dir = st.text_input("Results directory", value="cli_results_v1", help="Thư mục lưu trữ kết quả thực nghiệm")
+            max_tokens = st.number_input("Max Completion Tokens (0 = default)", min_value=0, max_value=65536, value=0, step=512, help="0 = để mặc định theo cấu hình model")
+        with adv_col3:
+            custom_api_key = st.text_input("API Key Override", type="password", placeholder="Nhập API key nếu muốn ghi đè", help="Tùy chọn: ghi đè API key của provider cho lần chạy này")
 
         st.markdown("---")
         can_run = mode == "Legacy (OrderCalculator)" or (source_file and Path(source_file).exists() and class_info)
@@ -502,7 +548,10 @@ def render_config_view():
                 "context": context,
                 "full_scenario": full_scenario,
                 "run_id": run_id if run_id > 0 else None,
-                "results_dir": results_dir
+                "results_dir": results_dir,
+                "temperature": temperature,
+                "max_tokens": int(max_tokens) if max_tokens > 0 else None,
+                "api_key": custom_api_key.strip() if custom_api_key and custom_api_key.strip() else None,
             }
             st.rerun()
 
@@ -571,7 +620,10 @@ def render_running_view():
         config["class_name"],
         config["run_id"],
         config["results_dir"] if config["results_dir"] != "cli_results_v1" else None,
-        config.get("full_scenario", False)
+        config.get("full_scenario", False),
+        temperature=config.get("temperature"),
+        max_tokens=config.get("max_tokens"),
+        api_key=config.get("api_key"),
     )
 
     lines = []
@@ -721,6 +773,16 @@ def render_results_view():
         st.caption(f"Strategy: {strategy_name}")
     with col3:
         st.caption(f"Context: {context_name}")
+
+    param_details = []
+    if config.get("temperature") is not None:
+        param_details.append(f"Temperature: `{config['temperature']}`")
+    if config.get("max_tokens"):
+        param_details.append(f"Max Tokens: `{config['max_tokens']}`")
+    if config.get("run_id"):
+        param_details.append(f"Run ID: `{config['run_id']}`")
+    if param_details:
+        st.caption(" • ".join(param_details))
 
     if st.session_state.output:
         st.markdown("---")

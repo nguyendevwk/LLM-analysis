@@ -177,6 +177,7 @@ class APIClient(BaseCLIClient):
         timeout: Optional[int] = None,
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
+        api_key: Optional[str] = None,
     ):
         """
         Initialize the API client.
@@ -208,7 +209,10 @@ class APIClient(BaseCLIClient):
             f"{provider.upper()}_BASE_URL", config["base_url"]
         ).rstrip("/")
         self.key_env = config["key_env"]
-        self.api_keys = self._load_api_keys(self.key_env)
+        if api_key and api_key.strip():
+            self.api_keys = [api_key.strip()]
+        else:
+            self.api_keys = self._load_api_keys(self.key_env)
         self._api_key_index = 0
         self.api_key = self.api_keys[0] if self.api_keys else None
         self.key_required = config["key_required"]
