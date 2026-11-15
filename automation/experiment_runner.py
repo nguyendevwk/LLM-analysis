@@ -159,7 +159,7 @@ class ExperimentRunner:
         """Create a test file with only passing tests for mutation testing."""
         try:
             result = subprocess.run(
-                [                sys.executable, '-m', 'unittest', source_test_file.stem, '-v'],
+                [sys.executable, '-m', 'unittest', source_test_file.stem, '-v'],
                 cwd=source_test_file.parent,
                 capture_output=True,
                 text=True,
@@ -168,9 +168,15 @@ class ExperimentRunner:
 
             passing_tests = set()
             failing_tests = set()
-            current_test = None
+            combined_output = (result.stderr or "") + "\n" + (result.stdout or "")
 
-            for line in result.stderr.split('\n'):
+            # Robust extraction of failing/errored tests from unittest summary
+            failing_tests.update(re.findall(r'^(?:FAIL|ERROR):\s+(test_\w+)', combined_output, re.MULTILINE))
+            failing_tests.update(re.findall(r'^(test_\w+)\s+\(.*\)\s+\.\.\.\s+(?:FAIL|ERROR)', combined_output, re.MULTILINE))
+
+            # Line-by-line parsing for verbose output
+            current_test = None
+            for line in combined_output.split('\n'):
                 test_name_match = re.search(r'^(test_\w+)\s+\(', line)
                 if test_name_match:
                     current_test = test_name_match.group(1)
@@ -190,14 +196,14 @@ class ExperimentRunner:
                         failing_tests.add(current_test)
                         current_test = None
 
-            logger.info("Test filtering: %d passing, %d failing", len(passing_tests), len(failing_tests))
+            logger.info("Test filtering initial scan: %d passing, %d failing", len(passing_tests), len(failing_tests))
 
-            if not passing_tests:
-                logger.warning("No passing tests found - copying original file for mutmut")
+            if not passing_tests and not failing_tests:
+                logger.warning("No explicit passing/failing tests parsed - copying original file for mutmut")
                 shutil.copy2(source_test_file, target_test_file)
                 return
 
-            test_content = source_test_file.read_text()
+            test_content = source_test_file.read_text(encoding="utf-8")
             tree = ast.parse(test_content)
             filtered_tree = ast.parse("")
 
@@ -213,8 +219,12 @@ class ExperimentRunner:
 
                     for item in node.body:
                         if isinstance(item, ast.FunctionDef):
-                            if (item.name in ['setUp', 'tearDown'] or
-                                item.name in passing_tests):
+                            # Retain all non-test methods (setUp, tearDown, helper functions)
+                            if not item.name.startswith('test_'):
+                                new_class.body.append(item)
+                            elif item.name in failing_tests:
+                                continue
+                            elif not passing_tests or item.name in passing_tests:
                                 new_class.body.append(item)
                         else:
                             new_class.body.append(item)
@@ -231,9 +241,49 @@ class ExperimentRunner:
                 logger.warning("ast.unparse not available - using line-based filtering")
                 filtered_code = self._filter_tests_line_based(test_content, failing_tests)
 
-            target_test_file.write_text(filtered_code)
+            target_test_file.write_text(filtered_code, encoding="utf-8")
             logger.info("Created filtered test file: %s (removed %d failing tests)",
                         target_test_file, len(failing_tests))
+
+            # Self-healing verification loop: ensure mutmut baseline test suite passes 100%
+            max_repair_rounds = 5
+            for repair_round in range(max_repair_rounds):
+                verify_res = subprocess.run(
+                    [sys.executable, '-m', 'unittest', target_test_file.stem, '-v'],
+                    cwd=target_test_file.parent,
+                    capture_output=True,
+                    text=True,
+                    timeout=60
+                )
+                if verify_res.returncode == 0:
+                    logger.info("Filtered test file verified: 100%% passing tests for mutmut baseline")
+                    break
+
+                verify_out = (verify_res.stderr or "") + "\n" + (verify_res.stdout or "")
+                more_failing = set(re.findall(r'^(?:FAIL|ERROR):\s+(test_\w+)', verify_out, re.MULTILINE))
+                more_failing.update(re.findall(r'^(test_\w+)\s+\(.*\)\s+\.\.\.\s+(?:FAIL|ERROR)', verify_out, re.MULTILINE))
+                if not more_failing:
+                    for m in re.finditer(r'(test_\w+).*(?:FAIL|ERROR)', verify_out):
+                        more_failing.add(m.group(1))
+
+                if not more_failing:
+                    logger.warning("Unable to isolate remaining failing tests in verification round %d", repair_round + 1)
+                    break
+
+                logger.info("Removing %d additional failing tests in baseline repair round %d: %s",
+                            len(more_failing), repair_round + 1, more_failing)
+                try:
+                    t_tree = ast.parse(target_test_file.read_text(encoding="utf-8"))
+                    for cls_node in t_tree.body:
+                        if isinstance(cls_node, ast.ClassDef):
+                            cls_node.body = [
+                                m for m in cls_node.body
+                                if not (isinstance(m, ast.FunctionDef) and m.name in more_failing)
+                            ]
+                    target_test_file.write_text(ast.unparse(t_tree), encoding="utf-8")
+                except Exception as repair_err:
+                    logger.warning("Baseline repair AST failed: %s", repair_err)
+                    break
 
         except Exception as e:
             logger.error("Test filtering failed: %s - copying original file", e)
@@ -669,8 +719,13 @@ class ExperimentRunner:
                 if env.get("PYTHONPATH") else src_dir
             )
 
+            mutmut_cmd = [
+                mutmut_python, '-m', 'mutmut', 'run',
+                '--paths-to-mutate', 'src/',
+                '--runner', f"{mutmut_python} -m unittest discover tests '*_test.py'"
+            ]
             result = subprocess.run(
-                [mutmut_python, '-m', 'mutmut', 'run'],
+                mutmut_cmd,
                 cwd=mutants_dir, capture_output=True, text=True, timeout=600,
                 env=env
             )
