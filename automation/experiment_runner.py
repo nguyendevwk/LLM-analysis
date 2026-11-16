@@ -1003,7 +1003,8 @@ class ExperimentRunner:
             'tests_passed': 0,
             'tests_failed': 0,
             'test_errors': [],
-            'compilation_errors': []
+            'compilation_errors': [],
+            'raw_execution_output': ''
         }
 
         try:
@@ -1021,9 +1022,15 @@ class ExperimentRunner:
                     cwd=tests_file.parent, capture_output=True, text=True, timeout=120
                 )
 
+                raw_output = ((unittest_result.stderr or "") + "\n" + (unittest_result.stdout or "")).strip()
+                result['raw_execution_output'] = raw_output
+                if raw_output:
+                    result['test_errors'] = [raw_output]
+
                 self.parse_unittest_results(unittest_result.stderr, result)
             else:
                 result['compilation_errors'] = [compile_result.stderr]
+                result['raw_execution_output'] = compile_result.stderr or ""
                 logger.error("Compilation failed: %s", compile_result.stderr)
 
         except Exception as e:
@@ -1546,10 +1553,16 @@ class ExperimentRunner:
             ]
             summary['overall_quality_score'] = round(sum(quality_scores), 1)
 
+        if 'self_debug' in experiment_data:
+            summary['self_debug'] = experiment_data['self_debug']
+
         return summary
 
     def save_analysis_results(self, result_dir, analysis_results, experiment_data):
         """Save analysis results to JSON."""
+        if 'self_debug' in experiment_data:
+            analysis_results['self_debug'] = experiment_data['self_debug']
+
         analysis_file = result_dir / "analysis_results.json"
         with open(analysis_file, 'w', encoding='utf-8') as f:
             json.dump(analysis_results, f, indent=2, ensure_ascii=False)

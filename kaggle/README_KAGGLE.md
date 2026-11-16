@@ -83,6 +83,24 @@ python cli_experiment_runner.py \
   --model "hf:Qwen/Qwen3-4B-Instruct-2507" \
   --strategy chain_of_thought_prompting \
   --context interface_docstring
+
+# ⭐ HƯỚNG 1: VÒNG LẶP TỰ SỬA LỖI (Self-Debugging qua Traceback Feedback)
+# Chạy 1 lần thử nghiệm trước để kiểm tra chất lượng sửa lỗi:
+python cli_experiment_runner.py \
+  --model hf-qwen-2.5-coder-7b \
+  --strategy metamorphic_prompting \
+  --context full_context \
+  --self-debug \
+  --runs 1 \
+  --zip-password mypass123
+
+# Chạy toàn bộ ma trận (Full Scenario 3 strategies × 3 contexts × 5 runs) có Self-Debugging:
+python cli_experiment_runner.py \
+  --model hf-qwen-2.5-coder-7b \
+  --full-scenario \
+  --self-debug \
+  --runs 5 \
+  --zip-password mypass123
 ```
 
 ---

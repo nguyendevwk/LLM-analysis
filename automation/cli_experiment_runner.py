@@ -104,6 +104,8 @@ class CLIExperimentRunner:
         temperature=None,
         max_tokens=None,
         api_key=None,
+        self_debug: bool = False,
+        self_debug_rounds: int = 1,
     ):
         """
         Initialize the CLI experiment runner.
@@ -115,6 +117,8 @@ class CLIExperimentRunner:
             temperature: Sampling temperature for API providers (optional)
             max_tokens: Max completion tokens limit (optional)
             api_key: Override API key for this runner instance (optional)
+            self_debug: Enable Execution-Guided Self-Debugging loop using traceback feedback
+            self_debug_rounds: Max reflection/debugging iterations when tests fail (default: 1)
         """
         self.base_results_dir = Path(base_results_dir)
         self.base_results_dir.mkdir(parents=True, exist_ok=True)
@@ -123,6 +127,8 @@ class CLIExperimentRunner:
         self.temperature = temperature
         self.max_tokens = max_tokens
         self.api_key = api_key
+        self.self_debug = bool(self_debug)
+        self.self_debug_rounds = max(1, int(self_debug_rounds))
 
         self.client_kwargs = {}
         if temperature is not None:
@@ -280,6 +286,14 @@ class CLIExperimentRunner:
                 logger.error("Failed to save experiment results")
                 return None
 
+            if self.self_debug and client is not None:
+                self._run_self_debugging_loop(
+                    client=client,
+                    result_dir=result_dir,
+                    analysis_runner=analysis_runner,
+                    experiment_data=experiment_data
+                )
+
             logger.info("Running analysis pipeline...")
             analysis_results = analysis_runner.run_analysis(result_dir, experiment_data)
 
@@ -335,6 +349,159 @@ class CLIExperimentRunner:
                         pass
                 del client
                 free_gpu_memory(verbose=False)
+
+    def _run_self_debugging_loop(
+        self,
+        client: Any,
+        result_dir: Path,
+        analysis_runner: ExperimentRunner,
+        experiment_data: dict,
+    ) -> dict:
+        """
+        Execution-Guided Self-Debugging Loop (Traceback Feedback).
+
+        If generated tests fail or error at runtime, this loop executes the suite,
+        captures the exact Python unittest traceback, feeds it back to the LLM
+        with targeted repair instructions, and verifies the repaired suite.
+        """
+        tests_file = result_dir / "tests.py"
+        if not tests_file.exists():
+            return {}
+
+        initial_comp = analysis_runner.test_compilation_and_execution(tests_file)
+        if initial_comp.get("execution_success") and initial_comp.get("tests_failed", 0) == 0:
+            logger.info("[Self-Debugging] Initial test suite passed completely (100% pass rate). No repair needed.")
+            return {
+                "needed": False,
+                "repaired": False,
+                "initial_passed": initial_comp.get("tests_passed", 0),
+                "initial_failed": 0
+            }
+
+        logger.info(
+            f"[Self-Debugging] Test execution failures detected: "
+            f"{initial_comp.get('tests_passed', 0)} passed, {initial_comp.get('tests_failed', 0)} failed. "
+            f"Starting self-debugging loop (max {self.self_debug_rounds} rounds)..."
+        )
+
+        source_file = result_dir / f"{analysis_runner.module_name}.py"
+        source_code = source_file.read_text(encoding="utf-8") if source_file.exists() else ""
+
+        current_comp = initial_comp
+        best_code = tests_file.read_text(encoding="utf-8")
+        rounds_applied = 0
+
+        for round_idx in range(1, self.self_debug_rounds + 1):
+            rounds_applied += 1
+            error_output = current_comp.get("raw_execution_output") or "\n".join(current_comp.get("compilation_errors", []))
+            current_test_code = tests_file.read_text(encoding="utf-8")
+
+            prompt = (
+                f"The generated Python unit test suite for `{analysis_runner.class_name}` encountered execution failures during testing.\n\n"
+                f"### Source Code of `{analysis_runner.class_name}`:\n"
+                f"```python\n{source_code.strip()}\n```\n\n"
+                f"### Current Unit Test Suite:\n"
+                f"```python\n{current_test_code.strip()}\n```\n\n"
+                f"### Unittest Failure Output & Traceback:\n"
+                f"```\n{error_output.strip()}\n```\n\n"
+                f"### Repair Instructions:\n"
+                f"Carefully analyze each failure in the traceback and compare it to the class implementation:\n"
+                f"1. Precondition Errors: Methods like `get_subtotal()` or `calculate_total()` raise `ValueError` on an empty cart. Add at least one item first if testing normal calculation, or verify the exception using `with self.assertRaises(ValueError):`.\n"
+                f"2. Strict Assertions: Check exact formula calculations, threshold values, and return values matching the source implementation.\n"
+                f"3. Invariant / Metamorphic Relations: Ensure tests verify actual state changes (e.g., adding an item then removing it returns the cart to empty, rather than matching an intermediate state).\n"
+                f"4. Do NOT remove or skip test methods. Fix the failing assertions or preconditions so that ALL test methods execute and PASS.\n\n"
+                f"Output ONLY the complete, repaired Python unit test suite enclosed in ```python ... ```."
+            )
+
+            logger.info(f"[Self-Debugging] Round {round_idx}/{self.self_debug_rounds}: Sending failure traceback to model...")
+            try:
+                repaired_response = client.send_prompt(prompt)
+            except Exception as ex:
+                logger.warning(f"[Self-Debugging] Round {round_idx} prompt failed: {ex}")
+                break
+
+            if not repaired_response:
+                logger.warning(f"[Self-Debugging] Round {round_idx}: Model returned empty response.")
+                break
+
+            repaired_code = analysis_runner.extract_test_code(repaired_response)
+            if not repaired_code or not repaired_code.strip():
+                logger.warning(f"[Self-Debugging] Round {round_idx}: Could not extract test code from response.")
+                continue
+
+            candidate_file = result_dir / f"tests_candidate_round_{round_idx}.py"
+            candidate_file.write_text(repaired_code, encoding="utf-8")
+
+            cand_comp = analysis_runner.test_compilation_and_execution(candidate_file)
+
+            is_better = False
+            if cand_comp.get("compilation_success"):
+                cand_passed = cand_comp.get("tests_passed", 0)
+                cand_failed = cand_comp.get("tests_failed", 0)
+                curr_passed = current_comp.get("tests_passed", 0)
+                curr_failed = current_comp.get("tests_failed", 0)
+
+                if cand_comp.get("execution_success") and cand_failed == 0:
+                    is_better = True
+                elif cand_failed < curr_failed:
+                    is_better = True
+                elif cand_passed > curr_passed and cand_failed <= curr_failed:
+                    is_better = True
+
+            if is_better:
+                logger.info(
+                    f"[Self-Debugging] Round {round_idx} SUCCESS: Candidate improved test suite! "
+                    f"({current_comp.get('tests_passed')} -> {cand_comp.get('tests_passed')} passed, "
+                    f"{current_comp.get('tests_failed')} -> {cand_comp.get('tests_failed')} failed)"
+                )
+                best_code = repaired_code
+                tests_file.write_text(best_code, encoding="utf-8")
+                current_comp = cand_comp
+                if cand_comp.get("execution_success") and cand_comp.get("tests_failed", 0) == 0:
+                    logger.info("[Self-Debugging] 100% tests passed! Early stopping loop.")
+                    try:
+                        candidate_file.unlink(missing_ok=True)
+                    except Exception:
+                        pass
+                    break
+            else:
+                logger.info(
+                    f"[Self-Debugging] Round {round_idx}: Candidate did not improve suite "
+                    f"({cand_comp.get('tests_passed')} passed, {cand_comp.get('tests_failed')} failed). Keeping previous version."
+                )
+
+            try:
+                candidate_file.unlink(missing_ok=True)
+            except Exception:
+                pass
+
+            free_gpu_memory(verbose=False)
+
+        # Update mutmut_test.py with the repaired passing tests
+        mutmut_test_file = result_dir / "mutmut_test.py"
+        analysis_runner.create_filtered_test_file(tests_file, mutmut_test_file)
+
+        # Record self-debugging telemetry in experiment_data
+        self_debug_info = {
+            "enabled": True,
+            "rounds_configured": self.self_debug_rounds,
+            "rounds_executed": rounds_applied,
+            "initial_passed": initial_comp.get("tests_passed", 0),
+            "initial_failed": initial_comp.get("tests_failed", 0),
+            "final_passed": current_comp.get("tests_passed", 0),
+            "final_failed": current_comp.get("tests_failed", 0),
+            "all_passed": bool(current_comp.get("execution_success", False) and current_comp.get("tests_failed", 0) == 0),
+        }
+        experiment_data["self_debug"] = self_debug_info
+
+        results_file = result_dir / "experiment_results.json"
+        try:
+            with open(results_file, "w", encoding="utf-8") as f:
+                json.dump(experiment_data, f, indent=2, ensure_ascii=False)
+        except Exception as ex:
+            logger.warning(f"Failed to update experiment_results.json with self_debug telemetry: {ex}")
+
+        return self_debug_info
 
     def _compute_and_save_statistical_summary(
         self,
@@ -939,6 +1106,12 @@ Examples:
     parser.add_argument('--legacy', action='store_true',
                         help='Force legacy mode even if --source-file is provided')
 
+    # Self-Debugging (Direction 1: Traceback Feedback Loop)
+    parser.add_argument('--self-debug', action='store_true',
+                        help='Enable Execution-Guided Self-Debugging loop using traceback feedback')
+    parser.add_argument('--self-debug-rounds', type=int, default=1,
+                        help='Maximum reflection/debugging rounds when tests fail (default: 1)')
+
     args, unknown_args = parser.parse_known_args()
     if unknown_args:
         logger.warning("Ignored unrecognized arguments/text: %s", " ".join(unknown_args))
@@ -998,6 +1171,8 @@ Examples:
         temperature=args.temperature,
         max_tokens=args.max_tokens,
         api_key=args.api_key,
+        self_debug=args.self_debug,
+        self_debug_rounds=args.self_debug_rounds,
     )
 
     if args.list_models:
