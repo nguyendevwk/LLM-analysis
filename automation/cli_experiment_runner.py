@@ -939,7 +939,9 @@ Examples:
     parser.add_argument('--legacy', action='store_true',
                         help='Force legacy mode even if --source-file is provided')
 
-    args = parser.parse_args()
+    args, unknown_args = parser.parse_known_args()
+    if unknown_args:
+        logger.warning("Ignored unrecognized arguments/text: %s", " ".join(unknown_args))
 
     logging.basicConfig(
         level=logging.INFO,

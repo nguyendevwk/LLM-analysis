@@ -176,6 +176,32 @@ def canonical_name(provider: str, model_id: str) -> str:
     return f"{provider}-{safe}"
 
 
+COMMON_MODEL_ALIASES: Dict[str, str] = {
+    # 14B Qwen aliases & typos
+    "hf-qwen-2.5-coder-14": "hf-qwen-2.5-coder-14b",
+    "hf-qwen-14": "hf-qwen-2.5-coder-14b",
+    "hf-qwen-14b": "hf-qwen-2.5-coder-14b",
+    "qwen-2.5-coder-14": "hf-qwen-2.5-coder-14b",
+    "qwen-2.5-coder-14b": "hf-qwen-2.5-coder-14b",
+    "qwen-14b": "hf-qwen-2.5-coder-14b",
+    "qwen-14": "hf-qwen-2.5-coder-14b",
+    # 7B Qwen aliases & typos
+    "hf-qwen-2.5-coder-7": "hf-qwen-2.5-coder-7b",
+    "hf-qwen-7": "hf-qwen-2.5-coder-7b",
+    "hf-qwen-7b": "hf-qwen-2.5-coder-7b",
+    "qwen-2.5-coder-7": "hf-qwen-2.5-coder-7b",
+    "qwen-2.5-coder-7b": "hf-qwen-2.5-coder-7b",
+    "qwen-7b": "hf-qwen-2.5-coder-7b",
+    "qwen-7": "hf-qwen-2.5-coder-7b",
+    # 3B / 4B aliases
+    "hf-qwen-2.5-coder-3": "hf-qwen-2.5-3b",
+    "hf-qwen-3": "hf-qwen-2.5-3b",
+    "hf-qwen-3b": "hf-qwen-2.5-3b",
+    "hf-qwen3-4": "hf-qwen3-4b",
+    "hf-qwen-4b": "hf-qwen3-4b",
+}
+
+
 def resolve_model(name: str) -> Optional[Tuple[ModelSpec, str]]:
     """
     Resolve a model name to (spec, canonical directory name).
@@ -187,6 +213,8 @@ def resolve_model(name: str) -> Optional[Tuple[ModelSpec, str]]:
     Returns None when the name is neither — callers then fall back to legacy CLI
     models and raise a helpful error.
     """
+    name = COMMON_MODEL_ALIASES.get(name.lower().strip(), name.strip())
+
     if name in REGISTRY:
         return REGISTRY[name], name
 

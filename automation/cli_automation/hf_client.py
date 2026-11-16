@@ -14,6 +14,9 @@ import logging
 from typing import Optional, List, Tuple, Dict, Any
 from pathlib import Path
 
+# Optimize CUDA allocator to prevent virtual memory fragmentation
+os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
+
 from .base_cli_client import BaseCLIClient
 
 logger = logging.getLogger(__name__)
@@ -23,9 +26,11 @@ HF_MODEL_ALIASES: Dict[str, str] = {
     # Qwen 2.5 Coder Official Base Models
     "qwen2.5-coder:14b": "Qwen/Qwen2.5-Coder-14B-Instruct",
     "qwen2.5-coder-14b": "Qwen/Qwen2.5-Coder-14B-Instruct",
+    "qwen2.5-coder-14": "Qwen/Qwen2.5-Coder-14B-Instruct",
     "qwen-coder-14b": "Qwen/Qwen2.5-Coder-14B-Instruct",
     "qwen2.5-coder:7b": "Qwen/Qwen2.5-Coder-7B-Instruct",
     "qwen2.5-coder-7b": "Qwen/Qwen2.5-Coder-7B-Instruct",
+    "qwen2.5-coder-7": "Qwen/Qwen2.5-Coder-7B-Instruct",
     "qwen-coder-7b": "Qwen/Qwen2.5-Coder-7B-Instruct",
     "qwen2.5-coder:1.5b": "Qwen/Qwen2.5-Coder-1.5B-Instruct",
     "qwen2.5-coder:32b": "Qwen/Qwen2.5-Coder-32B-Instruct",
@@ -101,7 +106,18 @@ class HuggingFaceClient(BaseCLIClient):
         super().__init__(command="transformers", model=resolved_model, timeout=timeout)
 
         self.model_id = resolved_model
-        self.device = device or ("cuda" if self._has_cuda() else "cpu")
+        if device:
+            self.device = device
+        else:
+            if self._has_cuda():
+                try:
+                    import torch
+                    self.device = "auto" if torch.cuda.device_count() > 1 else "cuda"
+                except Exception:
+                    self.device = "cuda"
+            else:
+                self.device = "cpu"
+
         self.load_in_4bit = load_in_4bit and self._has_cuda()
         self.temperature = temperature if temperature is not None else float(os.environ.get("LLM_TEMPERATURE", "0.2"))
         self.max_tokens = max_tokens if max_tokens is not None else int(os.environ.get("LLM_MAX_TOKENS", "2048"))
@@ -176,6 +192,19 @@ class HuggingFaceClient(BaseCLIClient):
         if self.hf_token:
             model_kwargs["token"] = self.hf_token
 
+        cuda_count = torch.cuda.device_count() if torch.cuda.is_available() else 0
+        is_large_model = any(tag in self.model_id.lower() for tag in ["14b", "32b", "70b"])
+
+        # Multi-GPU auto-split (e.g. Kaggle Dual-GPU 2x Tesla T4) or RAM offloading for large 14B+ models
+        if self.device == "auto" or cuda_count > 1 or is_large_model:
+            model_kwargs["device_map"] = "auto"
+            if cuda_count > 0:
+                max_mem = {i: "13GiB" for i in range(cuda_count)}
+                max_mem["cpu"] = "28GiB"
+                model_kwargs["max_memory"] = max_mem
+        else:
+            model_kwargs["device_map"] = {"": self.device}
+
         if self.load_in_4bit and torch.cuda.is_available():
             ensure_bitsandbytes()
             try:
@@ -188,16 +217,13 @@ class HuggingFaceClient(BaseCLIClient):
                     bnb_4bit_quant_type="nf4",
                 )
                 model_kwargs["quantization_config"] = quantization_config
-                model_kwargs["device_map"] = {"": self.device} if self.device != "auto" else "auto"
-                logger.info(f"Loaded with standard NF4 quantization (compute_dtype={compute_dtype}).")
+                logger.info(f"Loaded with standard NF4 quantization (compute_dtype={compute_dtype}, device_map={model_kwargs['device_map']}).")
             except Exception as quant_err:
                 logger.warning(f"BitsAndBytes NF4 quantization failed: {quant_err}. Falling back to float16.")
                 model_kwargs["torch_dtype"] = torch.float16
-                model_kwargs["device_map"] = {"": self.device} if self.device != "auto" else "auto"
         else:
             if torch.cuda.is_available():
                 model_kwargs["torch_dtype"] = torch.float16
-                model_kwargs["device_map"] = {"": self.device} if self.device != "auto" else "auto"
             else:
                 model_kwargs["torch_dtype"] = torch.float32
 
@@ -214,11 +240,19 @@ class HuggingFaceClient(BaseCLIClient):
         prompts: List[str]
     ) -> Tuple[List[str], str, float]:
         """Execute multiple prompts sequentially maintaining conversation history."""
+        import gc
+        import torch
+
         responses = []
         messages = []
         total_time = 0.0
 
         for prompt in prompts:
+            # Purge memory cache before each turn
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+
             messages.append({"role": "user", "content": prompt})
             resp = self._generate_messages(messages)
             if not resp:
@@ -227,6 +261,11 @@ class HuggingFaceClient(BaseCLIClient):
             messages.append({"role": "assistant", "content": resp})
             total_time += self.last_response_time
 
+            # Purge intermediate generation cache immediately after turn
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+
         final_response = responses[-1] if responses else ""
         return responses, final_response, total_time
 
@@ -234,6 +273,7 @@ class HuggingFaceClient(BaseCLIClient):
         """Perform text generation for chat messages."""
         self._ensure_loaded()
         import torch
+        import gc
 
         start_time = time.time()
         try:
@@ -248,7 +288,11 @@ class HuggingFaceClient(BaseCLIClient):
 
             inputs = self._tokenizer(prompt_text, return_tensors="pt")
             if torch.cuda.is_available() and self.device != "cpu":
-                inputs = {k: v.to(self._model_obj.device) for k, v in inputs.items()}
+                try:
+                    target_device = next(self._model_obj.parameters()).device
+                except Exception:
+                    target_device = "cuda:0"
+                inputs = {k: v.to(target_device) for k, v in inputs.items()}
 
             input_length = inputs["input_ids"].shape[1]
 
@@ -256,6 +300,7 @@ class HuggingFaceClient(BaseCLIClient):
                 "max_new_tokens": self.max_tokens,
                 "pad_token_id": self._tokenizer.pad_token_id,
                 "eos_token_id": self._tokenizer.eos_token_id,
+                "use_cache": True,
             }
             if self.temperature > 0.0:
                 gen_kwargs["do_sample"] = True
@@ -264,7 +309,7 @@ class HuggingFaceClient(BaseCLIClient):
             else:
                 gen_kwargs["do_sample"] = False
 
-            with torch.no_grad():
+            with torch.inference_mode():
                 output_ids = self._model_obj.generate(**inputs, **gen_kwargs)
 
             generated_tokens = output_ids[0][input_length:]
@@ -278,6 +323,12 @@ class HuggingFaceClient(BaseCLIClient):
             return response_text
 
         except Exception as e:
+            err_msg = str(e).lower()
+            if "out of memory" in err_msg or "cuda" in err_msg:
+                logger.error(f"CUDA memory pressure with model '{self.model_id}': {e}. Purging memory cache...")
+                gc.collect()
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
             logger.error(f"Generation error with model '{self.model_id}': {e}", exc_info=True)
             self.last_response_time = time.time() - start_time
             return None
