@@ -4,10 +4,15 @@ Instructions:
 - Use the `unittest` framework.
 - Return a single valid Python file with a class extending `unittest.TestCase`.
 
-Requirement 1: Full Method Coverage (MANDATORY)
+Requirement 1: Full Method & Negative Branch Coverage (MANDATORY)
 - You MUST test ALL 12 public methods of `OrderCalculator` individually:
   (__init__, add_item, remove_item, get_subtotal, apply_discount, calculate_shipping, calculate_tax, calculate_total, total_items, clear_order, list_items, is_empty).
-- Do NOT skip or omit any method! Target 100% method and branch coverage.
+- Target 100% statement and branch coverage by explicitly including:
+  a) Normal / Happy Path cases for each method.
+  b) Input Validation & Exception Branches (CRITICAL for full coverage):
+     - `TypeError`: Pass invalid types (e.g. non-string name, non-numeric price/tax/shipping/discount/subtotal, non-int quantity).
+     - `ValueError`: Test invalid parameter constraints (empty name, price <= 0, quantity < 1, duplicate item with different price, removing non-existent item, negative subtotal, discount outside [0.0, 1.0], negative tax amount).
+     - Empty Cart Exception: Test `ValueError` when calling `get_subtotal()` or `calculate_total()` on an empty order.
 
 Requirement 2: Metamorphic Relations (MRs) & Invariants
 In addition to individual method coverage, explicitly include tests for the following behavioral relations:

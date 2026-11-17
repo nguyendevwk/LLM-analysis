@@ -69,9 +69,14 @@ Instructions:
 - Use the `unittest` framework.
 - Return a single valid Python file with a class extending `unittest.TestCase`.
 
-Requirement 1: Full Method Coverage (MANDATORY)
+Requirement 1: Full Method & Negative Branch Coverage (MANDATORY)
 - You MUST test ALL public methods of `{class_name}` individually. Do not skip or omit any method!
-- Target 100% method and branch coverage (normal cases, boundary conditions, invalid inputs, exceptions).
+- Target 100% statement and branch coverage by explicitly including:
+  a) Normal / Happy Path cases for each method.
+  b) Input Validation & Exception Branches (CRITICAL for full branch coverage):
+     - `TypeError`: Pass invalid argument types to verify parameter type checks.
+     - `ValueError`: Test domain constraints (empty names, out-of-range numbers, negative values, missing items).
+     - Empty State Exceptions: Test methods that raise exceptions when the object is uninitialized or empty.
 
 Requirement 2: Metamorphic Relations (MRs) & Invariants
 In addition to individual method coverage, explicitly include tests for the following behavioral relations:
