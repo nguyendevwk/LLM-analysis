@@ -4,28 +4,32 @@ Instructions:
 - Use the `unittest` framework.
 - Return a single valid Python file with a class extending `unittest.TestCase`.
 
-Requirement 1: Full Method & Negative Branch Coverage (MANDATORY)
-- You MUST test ALL 12 public methods of `OrderCalculator` individually:
-  (__init__, add_item, remove_item, get_subtotal, apply_discount, calculate_shipping, calculate_tax, calculate_total, total_items, clear_order, list_items, is_empty).
-- Target 100% statement and branch coverage by explicitly including:
-  a) Normal / Happy Path cases for each method.
-  b) Input Validation & Exception Branches (CRITICAL for full coverage):
-     - `TypeError`: Pass invalid types (e.g. non-string name, non-numeric price/tax/shipping/discount/subtotal, non-int quantity).
-     - `ValueError`: Test invalid parameter constraints (empty name, price <= 0, quantity < 1, duplicate item with different price, removing non-existent item, negative subtotal, discount outside [0.0, 1.0], negative tax amount).
-     - Empty Cart Exception: Test `ValueError` when calling `get_subtotal()` or `calculate_total()` on an empty order.
+Requirement 1: Method & Exception Branch Testing (MANDATORY for 100% Coverage)
+You MUST test both normal execution AND all exception branches across all 12 methods:
+1. `__init__`: test normal initialization; test TypeError (non-numeric parameters); test ValueError (tax_rate outside [0.0, 1.0], negative threshold, negative shipping).
+2. `add_item`: test normal addition and quantity increment; test TypeError (invalid name/price/quantity types); test ValueError (empty name, price <= 0, quantity < 1, duplicate item with different price).
+3. `remove_item`: test normal removal; test TypeError (non-string name); test ValueError (removing item not present in cart).
+4. `get_subtotal`: test normal subtotal sum; test ValueError when calling on an empty order.
+5. `apply_discount`: test normal discount; test TypeError; test ValueError (negative subtotal, discount not in [0.0, 1.0]).
+6. `calculate_shipping`: test standard shipping (< 100.0) and free shipping (>= 100.0); test TypeError.
+7. `calculate_tax`: test normal tax; test TypeError; test ValueError on negative amount.
+8. `calculate_total`: test total calculation with discount and shipping; test TypeError; test ValueError on empty order.
+9. `total_items`, `clear_order`, `list_items`, `is_empty`: test normal behavior and empty/cleared state.
 
 Requirement 2: Metamorphic Relations (MRs) & Invariants
-In addition to individual method coverage, explicitly include tests for the following behavioral relations:
+Explicitly include tests for the 5 behavioral relations:
 1. Monotonicity / Directionality (MR-Monotone):
-   e.g., adding positive items strictly increases subtotal; higher discount rate strictly decreases final total.
+   - Adding an item strictly increases subtotal (`assertGreater(subtotal2, subtotal1)`).
+   - Higher discount rate strictly decreases final total: add items to cart, then assert `self.assertLess(self.calc.calculate_total(0.2), self.calc.calculate_total(0.1))`.
 2. Invariance & Idempotence (MR-Idempotent):
-   e.g., calling clear_order() twice produces the exact same empty state as calling once; getter methods must not modify internal state.
+   - Calling `clear_order()` twice produces the exact same empty state as calling once.
+   - Getter methods (`list_items()`, `get_subtotal()`) must not mutate internal state.
 3. Reversibility / Inverse Operations (MR-Inverse):
-   e.g., adding an item and then removing it restores the prior item count and state.
+   - Adding an item then removing it restores the prior cart items and length.
 4. Commutativity & Permutation (MR-Commutative):
-   e.g., the order of adding distinct independent items produces identical subtotal and tax.
+   - Adding items in order [A, B] vs [B, A] produces identical total.
 5. Boundary & Threshold Discontinuity (MR-Threshold):
-   Test exact values right around the 100.0 threshold (e.g., 99.99, 100.0, 100.01).
+   - Verify shipping cost jump: subtotal 99.99 pays 10.0 shipping, whereas subtotal 100.0 gets 0.0 shipping.
 
 Requirement 3: Robust Assertion & Exception Standards
 - Strict Exception Checking: Always verify BOTH the exception type and error message:
